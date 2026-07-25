@@ -770,7 +770,7 @@ div.code-toolbar > .toolbar > .toolbar-item > span:hover {
         if (!el) return;
         el.innerHTML = sanitizeMarkdownHTML(marked.parse(md || ''));
         renderMathInElement(el, {
-            delimeters: RENDER_MATH_DELIMITERS,
+            delimiters: RENDER_MATH_DELIMITERS,
             throwOnError: false
         });
         for (let elem of el.querySelectorAll("pre"))
@@ -924,7 +924,7 @@ div.code-toolbar > .toolbar > .toolbar-item > span:hover {
         })
         removeFixed(el);
         renderMathInElement(el, {
-            delimeters: RENDER_MATH_DELIMITERS,
+            delimiters: RENDER_MATH_DELIMITERS,
             throwOnError: false
         });
         for (let elem of el.querySelectorAll("pre"))

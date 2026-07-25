@@ -262,7 +262,15 @@
         if (cache.messages && typeof cache.messages === 'object') {
             Object.entries(cache.messages).forEach(([key, items]) => {
                 if (state.conversationByKey.size && !state.conversationByKey.has(key)) return;
-                if (Array.isArray(items)) state.messagesByKey.set(key, sortMessages(items));
+                if (Array.isArray(items)) {
+                    const normalizedItems = items.map((item) => {
+                        if (!item || typeof item !== 'object') return item;
+                        return Object.assign({}, item, {
+                            content: sanitizeStoredMessageContent(item.content),
+                        });
+                    });
+                    state.messagesByKey.set(key, sortMessages(normalizedItems));
+                }
             });
         }
         if (cache.unread && typeof cache.unread === 'object') {
@@ -657,8 +665,30 @@
         return [];
     }
 
+    function unwrapTextMessageContent(value) {
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+            return value.type === 'text' && typeof value.content === 'string'
+                ? value.content
+                : String(value);
+        }
+
+        const original = String(value == null ? '' : value);
+        const trimmed = original.trim();
+        if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) return original;
+
+        try {
+            const payload = JSON.parse(trimmed);
+            if (payload && !Array.isArray(payload) && payload.type === 'text' && typeof payload.content === 'string') {
+                return payload.content;
+            }
+        } catch (_) {
+            // Ordinary chat text may look JSON-like; keep it unchanged when parsing fails.
+        }
+        return original;
+    }
+
     function sanitizeStoredMessageContent(value) {
-        let content = String(value == null ? '' : value);
+        let content = unwrapTextMessageContent(value);
         let blockedData = 0;
         content = content.replace(/data:([a-z0-9.+/-]+);base64,[a-z0-9+/=]+/gi, (match, mime) => {
             if (match.length <= CHAT_RENDER_DATA_URL_MAX_CHARS) return match;

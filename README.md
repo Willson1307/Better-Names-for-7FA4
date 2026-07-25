@@ -1,7 +1,7 @@
 # Better Names for 7FA4
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Version](https://img.shields.io/badge/version-2026.08.01-green.svg)
+![Version](https://img.shields.io/badge/version-2026.09.02-green.svg)
 ![Manifest](https://img.shields.io/badge/manifest-v3-brightgreen.svg)
 ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-orange.svg)
 
@@ -14,6 +14,7 @@ Better Names for 7FA4 是一款面向 7FA4 在线评测系统的浏览器扩展�
 - 计划相关工具：批量加入个人计划、个人计划日期导航、长计划页自动定位到当天。
 - Markdown / LaTeX 渲染：支持计划、复盘本和聊天室消息中的 Markdown、LaTeX、代码高亮，并对可渲染内容进行清理。
 - 7FA4 聊天室：支持私聊/群聊、会话列表、消息缓存、新消息提示、预览开关和历史消息加载。
+- 聊天内容兼容：自动解析结构化文本消息，并支持使用 `$...$`、`$$...$$`、`\(...\)` 和 `\[...\]` 渲染 LaTeX。
 - 比赛与复盘辅助：比赛结束后可补充相关文件下载按钮，并提供复盘入口。
 - 外站题提交器：内置 7FA4 外站题提交器，便于从外站提交记录发送到 7FA4 指定题目。
 - 更新与反馈：面板内提供版本检查、售后反馈和加入 Better Names 计划入口。

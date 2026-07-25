@@ -180,6 +180,7 @@
     const manifestVersion = normalizeVersionString(readManifestVersion());
     const manifestVersionInfo = parseComparableVersion(manifestVersion);
     const WELCOME_SEEN_VERSION_KEY = 'bn.welcome.seenVersion';
+    const WELCOME_PRESENTATION_REVISION = '2026.09-cards-v1';
     const WELCOME_LETTER_PARAGRAPHS = [
         '感谢每一位一直以来支持该插件的伙伴。你们的使用、反馈与陪伴，让这个小小的项目能够一点点走到今天，BN 难免会存在一些问题，还请大家多多包涵。',
         '借此机会，BN 把祝福送给所有正在学习 OI 的同学，尤其是刚从 NOI 赛场凯旋归来的你们。',
@@ -1768,15 +1769,16 @@
     }
 
     function shouldShowFirstLoadWelcome() {
-        return Boolean(manifestVersion && readWelcomeSeenVersion() !== manifestVersion);
+        if (!manifestVersion) return false;
+        return readWelcomeSeenVersion() !== `${manifestVersion}|${WELCOME_PRESENTATION_REVISION}`;
     }
 
     function markFirstLoadWelcomeSeen() {
         if (!manifestVersion) return;
         try {
-            GM_setValue(WELCOME_SEEN_VERSION_KEY, manifestVersion);
+            GM_setValue(WELCOME_SEEN_VERSION_KEY, `${manifestVersion}|${WELCOME_PRESENTATION_REVISION}`);
         } catch (_) { /* ignore */
-        }
+    }
     }
 
     function appendWelcomeInlineText(target, text) {
