@@ -47,6 +47,7 @@
         enableQuickSkip: undefined,
         enableUserPlanDateNavigator: true,
         enablePaperEditor: true,
+        enableProblemWorkbench: true,
         enableChatroom: true,
         'quickSkip.migrated.v1': false,
         enableTitleOptimization: true,
@@ -180,7 +181,7 @@
     const manifestVersion = normalizeVersionString(readManifestVersion());
     const manifestVersionInfo = parseComparableVersion(manifestVersion);
     const WELCOME_SEEN_VERSION_KEY = 'bn.welcome.seenVersion';
-    const WELCOME_PRESENTATION_REVISION = '2026.09-cards-v1';
+    const WELCOME_PRESENTATION_REVISION = '2026.10-directory-v1';
     const WELCOME_LETTER_PARAGRAPHS = [
         '感谢每一位一直以来支持该插件的伙伴。你们的使用、反馈与陪伴，让这个小小的项目能够一点点走到今天，BN 难免会存在一些问题，还请大家多多包涵。',
         '借此机会，BN 把祝福送给所有正在学习 OI 的同学，尤其是刚从 NOI 赛场凯旋归来的你们。',
@@ -190,25 +191,11 @@
     ];
     const WELCOME_FEATURES = [
         {
-            eyebrow: '交互升级',
-            title: '面板唤起，改为点击',
-            description: '告别容易误触的悬停唤起。现在点击入口即可打开面板，操作更明确、更稳定。',
-            illustration: 'content/panel/welcome-panel-click.svg',
-            alt: '鼠标点击 Better Names 面板入口的插画',
-        },
-        {
-            eyebrow: '编辑器修复',
-            title: '分数线可以正确导出了',
-            description: '修复 Markdown 编辑器导出时遗漏或错误处理分数线的问题，纸面内容输出更可靠。',
-            illustration: 'content/panel/welcome-score-line.svg',
-            alt: 'Markdown 文档正确导出分数线的插画',
-        },
-        {
-            eyebrow: '榜单效率',
-            title: '榜单合并，自动完成',
-            description: '榜单多页合并流程完成自动化，减少重复操作，更快看到完整排名。',
-            illustration: 'content/panel/welcome-ranking-merge.svg',
-            alt: '多个榜单自动汇总成完整排名的插画',
+            eyebrow: '2026.10 · 重大更新',
+            title: '题目目录，一眼直达',
+            description: '题目详情页新增可折叠目录，章节跳转更快；还可以直接定位提交区，或把当前题目加入明日计划。',
+            visual: 'problem-directory',
+            compact: true,
         },
     ];
     const isSupportedHostname = (host) => {
@@ -261,6 +248,7 @@
     if (enableQuickSkip === undefined) enableQuickSkip = true;
     const enableUserPlanDateNavigator = readConfigValue('enableUserPlanDateNavigator') !== false;
     const enablePaperEditor = readConfigValue('enablePaperEditor') !== false;
+    const enableProblemWorkbench = readConfigValue('enableProblemWorkbench') !== false;
     const enableChatroom = readConfigValue('enableChatroom') !== false;
     const enableTitleOptimization = readConfigValue('enableTitleOptimization');
     const widthMode = readConfigValue(WIDTH_MODE_KEY);
@@ -299,6 +287,7 @@
         enableQuickSkip,
         enableUserPlanDateNavigator,
         enablePaperEditor,
+        enableProblemWorkbench,
         enableChatroom,
         enableTitleOptimization,
     };
@@ -1912,8 +1901,8 @@
         featureScreen.hidden = true;
         const featureHeader = createElement('div', 'bn-welcome-screen-header');
         featureHeader.append(
-            createElement('div', 'bn-welcome-kicker', '本次重大更改'),
-            createElement('h2', '', '更顺手，也更省心')
+            createElement('div', 'bn-welcome-kicker', '2026.10 · 本次重大更新'),
+            createElement('h2', '', '读题，从此不再迷路')
         );
         featureHeader.querySelector('h2').id = 'bn-welcome-feature-title';
         const carousel = createElement('div', 'bn-welcome-carousel');
@@ -1922,12 +1911,35 @@
         const track = createElement('div', 'bn-welcome-carousel-track');
         const cards = WELCOME_FEATURES.map((feature, index) => {
             const card = createElement('article', 'bn-welcome-feature-card');
+            if (feature.compact) card.classList.add('bn-welcome-feature-card-compact');
             card.setAttribute('aria-label', `${index + 1} / ${WELCOME_FEATURES.length}：${feature.title}`);
             const illustrationWrap = createElement('div', 'bn-welcome-feature-illustration');
-            const illustration = document.createElement('img');
-            illustration.src = resolveRuntimeUrl(feature.illustration);
-            illustration.alt = feature.alt;
-            illustrationWrap.appendChild(illustration);
+            if (feature.visual === 'problem-directory') {
+                const directoryDemo = createElement('div', 'bn-welcome-directory-demo');
+                const directoryHeader = createElement('div', 'bn-welcome-directory-demo-header');
+                directoryHeader.append(
+                    createElement('span', 'bn-welcome-directory-demo-brand', 'BETTER NAMES'),
+                    createElement('strong', '', '题目目录')
+                );
+                const directoryNav = createElement('div', 'bn-welcome-directory-demo-nav');
+                ['题目描述', '输入格式', '输出格式', '样例输入', '样例输出', '提示'].forEach((label, itemIndex) => {
+                    const item = createElement('span', 'bn-welcome-directory-demo-item', label);
+                    if (itemIndex === 3) item.classList.add('bn-active');
+                    directoryNav.appendChild(item);
+                });
+                const directoryActions = createElement('div', 'bn-welcome-directory-demo-actions');
+                directoryActions.append(
+                    createElement('span', '', '⌘ 提交代码'),
+                    createElement('span', '', '+ 加入明日计划')
+                );
+                directoryDemo.append(directoryHeader, directoryNav, directoryActions);
+                illustrationWrap.appendChild(directoryDemo);
+            } else if (feature.illustration) {
+                const illustration = document.createElement('img');
+                illustration.src = resolveRuntimeUrl(feature.illustration);
+                illustration.alt = feature.alt || '';
+                illustrationWrap.appendChild(illustration);
+            }
             const copy = createElement('div', 'bn-welcome-feature-copy');
             copy.append(
                 createElement('div', 'bn-welcome-feature-eyebrow', feature.eyebrow),
@@ -1947,7 +1959,9 @@
             carouselDots.appendChild(button);
             return button;
         });
-        carousel.append(track, carouselDots);
+        carousel.appendChild(track);
+        if (WELCOME_FEATURES.length > 1) carousel.appendChild(carouselDots);
+        else carousel.classList.add('bn-welcome-carousel-single');
         const featureActions = createElement('div', 'bn-welcome-actions bn-welcome-feature-actions');
         const featureBack = createElement('button', 'bn-welcome-button bn-welcome-button-quiet', '返回');
         featureBack.type = 'button';
@@ -2339,6 +2353,7 @@
     const chkQuickSkip = document.getElementById('bn-enable-quick-skip');
     const chkUserPlanDateNavigator = document.getElementById('bn-enable-user-plan-date-navigator');
     const chkPaperEditor = document.getElementById('bn-enable-paper-editor');
+    const chkProblemWorkbench = document.getElementById('bn-enable-problem-workbench');
     const chkChatroom = document.getElementById('bn-enable-chatroom');
     const chkTitleOpt = document.getElementById('bn-enable-title-optimization');
 
@@ -2388,6 +2403,7 @@
     chkQuickSkip.checked = enableQuickSkip;
     if (chkUserPlanDateNavigator) chkUserPlanDateNavigator.checked = enableUserPlanDateNavigator;
     if (chkPaperEditor) chkPaperEditor.checked = enablePaperEditor;
+    if (chkProblemWorkbench) chkProblemWorkbench.checked = enableProblemWorkbench;
     if (chkChatroom) chkChatroom.checked = enableChatroom;
     chkTitleOpt.checked = enableTitleOptimization;
     if (bgOpacityValueSpan) bgOpacityValueSpan.textContent = formatOpacityText(normalizedBgOpacity);
@@ -2478,6 +2494,7 @@
         enableQuickSkip,
         enableUserPlanDateNavigator,
         enablePaperEditor,
+        enableProblemWorkbench,
         enableChatroom,
         enableTitleOptimization,
         widthMode,
@@ -3175,7 +3192,7 @@
         const currentBtEnabled = getHiToiletEnabledState();
         const templateBulkAddChk = document.getElementById('bn-enable-template-bulk-add');
 
-        const changed = (document.getElementById('bn-enable-title-truncate').checked !== originalConfig.titleTruncate) || (document.getElementById('bn-enable-user-truncate').checked !== originalConfig.userTruncate) || (document.getElementById('bn-enable-title-truncate').checked && ti !== originalConfig.maxTitleUnits) || (document.getElementById('bn-enable-user-truncate').checked && ui !== originalConfig.maxUserUnits) || (document.getElementById('bn-hide-avatar').checked !== originalConfig.hideAvatar) || (document.getElementById('bn-enable-copy').checked !== originalConfig.enableCopy) || (document.getElementById('bn-enable-desc-copy').checked !== originalConfig.enableDescCopy) || (document.getElementById('bn-hide-orig').checked !== originalConfig.hideOrig) || (document.getElementById('bn-enable-contest-download').checked !== originalConfig.enableContestDownloadButtons) || (document.getElementById('bn-enable-contest-review').checked !== originalConfig.enableContestReviewButtons) || (document.getElementById('bn-show-user-nickname').checked !== originalConfig.showUserNickname) || ((document.getElementById('bn-default-hide-submitted-homework')?.checked ?? originalConfig.defaultHideSubmittedHomework) !== originalConfig.defaultHideSubmittedHomework) || (document.getElementById('bn-enable-user-menu').checked !== originalConfig.enableMenu) || ((templateBulkAddChk ? templateBulkAddChk.checked : originalConfig.enableTemplateBulkAdd) !== originalConfig.enableTemplateBulkAdd) || (document.getElementById('bn-enable-renew').checked !== originalConfig.enableAutoRenew) || (document.getElementById('bn-enable-ranking-filter').checked !== originalConfig.enableRankingFilter) || (document.getElementById('bn-enable-column-switch').checked !== originalConfig.columnSwitchEnabled) || (document.getElementById('bn-enable-merge-assistant').checked !== originalConfig.mergeAssistantEnabled) || (document.getElementById('bn-enable-vj').checked !== originalConfig.enableVjLink) || (document.getElementById('bn-hide-done-skip').checked !== originalConfig.hideDoneSkip) || (document.getElementById('bn-enable-quick-skip').checked !== originalConfig.enableQuickSkip) || ((document.getElementById('bn-enable-user-plan-date-navigator')?.checked ?? originalConfig.enableUserPlanDateNavigator) !== originalConfig.enableUserPlanDateNavigator) || ((document.getElementById('bn-enable-paper-editor')?.checked ?? originalConfig.enablePaperEditor) !== originalConfig.enablePaperEditor) || ((chkChatroom?.checked ?? originalConfig.enableChatroom) !== originalConfig.enableChatroom) || (document.getElementById('bn-enable-title-optimization').checked !== originalConfig.enableTitleOptimization) || (document.getElementById('bn-use-custom-color').checked !== originalConfig.useCustomColors) || codeThemeChanged || customCssChanged || ((document.getElementById('bn-width-mode')?.value ?? originalConfig.widthMode) !== originalConfig.widthMode) || (currentBgEnabled !== originalConfig.bgEnabled) || bgSourceChanged || (currentBgfillway !== originalConfig.bgfillway) || (currentBgOpacity !== originalConfig.bgOpacity) || (clampBlur(currentBgBlur) !== clampBlur(originalConfig.bgBlur)) || (currentBtEnabled !== originalConfig.btEnabled) || (hiToiletIntervalInput && clampHiToiletInterval(hiToiletIntervalInput.value) !== originalConfig.btInterval) || (getSelectedThemeMode() !== originalConfig.themeMode) || themeColorChanged || paletteChanged;
+        const changed = (document.getElementById('bn-enable-title-truncate').checked !== originalConfig.titleTruncate) || (document.getElementById('bn-enable-user-truncate').checked !== originalConfig.userTruncate) || (document.getElementById('bn-enable-title-truncate').checked && ti !== originalConfig.maxTitleUnits) || (document.getElementById('bn-enable-user-truncate').checked && ui !== originalConfig.maxUserUnits) || (document.getElementById('bn-hide-avatar').checked !== originalConfig.hideAvatar) || (document.getElementById('bn-enable-copy').checked !== originalConfig.enableCopy) || (document.getElementById('bn-enable-desc-copy').checked !== originalConfig.enableDescCopy) || (document.getElementById('bn-hide-orig').checked !== originalConfig.hideOrig) || (document.getElementById('bn-enable-contest-download').checked !== originalConfig.enableContestDownloadButtons) || (document.getElementById('bn-enable-contest-review').checked !== originalConfig.enableContestReviewButtons) || (document.getElementById('bn-show-user-nickname').checked !== originalConfig.showUserNickname) || ((document.getElementById('bn-default-hide-submitted-homework')?.checked ?? originalConfig.defaultHideSubmittedHomework) !== originalConfig.defaultHideSubmittedHomework) || (document.getElementById('bn-enable-user-menu').checked !== originalConfig.enableMenu) || ((templateBulkAddChk ? templateBulkAddChk.checked : originalConfig.enableTemplateBulkAdd) !== originalConfig.enableTemplateBulkAdd) || (document.getElementById('bn-enable-renew').checked !== originalConfig.enableAutoRenew) || (document.getElementById('bn-enable-ranking-filter').checked !== originalConfig.enableRankingFilter) || (document.getElementById('bn-enable-column-switch').checked !== originalConfig.columnSwitchEnabled) || (document.getElementById('bn-enable-merge-assistant').checked !== originalConfig.mergeAssistantEnabled) || (document.getElementById('bn-enable-vj').checked !== originalConfig.enableVjLink) || (document.getElementById('bn-hide-done-skip').checked !== originalConfig.hideDoneSkip) || (document.getElementById('bn-enable-quick-skip').checked !== originalConfig.enableQuickSkip) || ((document.getElementById('bn-enable-user-plan-date-navigator')?.checked ?? originalConfig.enableUserPlanDateNavigator) !== originalConfig.enableUserPlanDateNavigator) || ((document.getElementById('bn-enable-paper-editor')?.checked ?? originalConfig.enablePaperEditor) !== originalConfig.enablePaperEditor) || ((document.getElementById('bn-enable-problem-workbench')?.checked ?? originalConfig.enableProblemWorkbench) !== originalConfig.enableProblemWorkbench) || ((chkChatroom?.checked ?? originalConfig.enableChatroom) !== originalConfig.enableChatroom) || (document.getElementById('bn-enable-title-optimization').checked !== originalConfig.enableTitleOptimization) || (document.getElementById('bn-use-custom-color').checked !== originalConfig.useCustomColors) || codeThemeChanged || customCssChanged || ((document.getElementById('bn-width-mode')?.value ?? originalConfig.widthMode) !== originalConfig.widthMode) || (currentBgEnabled !== originalConfig.bgEnabled) || bgSourceChanged || (currentBgfillway !== originalConfig.bgfillway) || (currentBgOpacity !== originalConfig.bgOpacity) || (clampBlur(currentBgBlur) !== clampBlur(originalConfig.bgBlur)) || (currentBtEnabled !== originalConfig.btEnabled) || (hiToiletIntervalInput && clampHiToiletInterval(hiToiletIntervalInput.value) !== originalConfig.btInterval) || (getSelectedThemeMode() !== originalConfig.themeMode) || themeColorChanged || paletteChanged;
 
         saveActions.classList.toggle('bn-visible', changed);
     }
@@ -3328,6 +3345,7 @@
         GM_setValue('enableQuickSkip', chkQuickSkip.checked);
         GM_setValue('enableUserPlanDateNavigator', chkUserPlanDateNavigator ? chkUserPlanDateNavigator.checked : enableUserPlanDateNavigator);
         GM_setValue('enablePaperEditor', chkPaperEditor ? chkPaperEditor.checked : enablePaperEditor);
+        GM_setValue('enableProblemWorkbench', chkProblemWorkbench ? chkProblemWorkbench.checked : enableProblemWorkbench);
         GM_setValue('enableChatroom', chkChatroom ? chkChatroom.checked : enableChatroom);
         GM_setValue('enableTitleOptimization', chkTitleOpt.checked);
         GM_setValue('enableUserMenu', chkMenu.checked);
@@ -3444,6 +3462,7 @@
         applyQuickSkip(originalConfig.enableQuickSkip);
         if (chkUserPlanDateNavigator) chkUserPlanDateNavigator.checked = originalConfig.enableUserPlanDateNavigator;
         if (chkPaperEditor) chkPaperEditor.checked = originalConfig.enablePaperEditor;
+        if (chkProblemWorkbench) chkProblemWorkbench.checked = originalConfig.enableProblemWorkbench;
         if (chkChatroom) chkChatroom.checked = originalConfig.enableChatroom;
         chkTitleOpt.checked = originalConfig.enableTitleOptimization;
         if (chkTemplateBulkAdd) chkTemplateBulkAdd.checked = originalConfig.enableTemplateBulkAdd;
@@ -4119,6 +4138,200 @@
         };
 
         link.parentNode.insertBefore(btn, link);
+    }
+
+    function initProblemWorkbench() {
+        const pathMatch = location.pathname.match(/^\/problem\/(\d+)\/?$/);
+        if (!pathMatch || document.getElementById('bn-problem-workbench')) return;
+
+        const problemId = Number(pathMatch[1]);
+        if (!Number.isFinite(problemId)) return;
+
+        const start = (attempt = 0) => {
+            if (document.getElementById('bn-problem-workbench')) return;
+            if (!document.body) {
+                if (attempt < 20) window.setTimeout(() => start(attempt + 1), 100);
+                return;
+            }
+
+            const problemTitle = document.querySelector('h1');
+            if (!problemTitle && attempt < 20) {
+                window.setTimeout(() => start(attempt + 1), 150);
+                return;
+            }
+
+            const workbench = document.createElement('aside');
+            workbench.id = 'bn-problem-workbench';
+            workbench.setAttribute('aria-label', '题目目录');
+            workbench.style.setProperty('--bn-workbench-accent', themeColor);
+            workbench.classList.toggle('bn-dark', currentThemeMode === 'dark');
+
+            const header = document.createElement('div');
+            header.className = 'bn-problem-workbench-header';
+
+            const headingWrap = document.createElement('div');
+            headingWrap.className = 'bn-problem-workbench-heading';
+            const eyebrow = document.createElement('span');
+            eyebrow.className = 'bn-problem-workbench-eyebrow';
+            eyebrow.textContent = 'Better Names';
+            const title = document.createElement('strong');
+            title.textContent = '题目目录';
+            headingWrap.append(eyebrow, title);
+
+            const collapseButton = document.createElement('button');
+            collapseButton.type = 'button';
+            collapseButton.className = 'bn-problem-workbench-collapse';
+            collapseButton.setAttribute('aria-label', '折叠题目目录');
+            collapseButton.textContent = '›';
+            header.append(headingWrap, collapseButton);
+
+            const body = document.createElement('div');
+            body.className = 'bn-problem-workbench-body';
+
+            const problemName = document.createElement('div');
+            problemName.className = 'bn-problem-workbench-problem';
+            problemName.textContent = (problemTitle?.textContent || `题目 #${problemId}`).trim();
+            problemName.title = problemName.textContent;
+
+            const actionGrid = document.createElement('div');
+            actionGrid.className = 'bn-problem-workbench-actions';
+
+            const createAction = (label, icon, handler) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'bn-problem-workbench-action';
+                const iconNode = document.createElement('span');
+                iconNode.className = 'bn-problem-workbench-action-icon';
+                iconNode.setAttribute('aria-hidden', 'true');
+                iconNode.textContent = icon;
+                const labelNode = document.createElement('span');
+                labelNode.textContent = label;
+                button.append(iconNode, labelNode);
+                button.addEventListener('click', handler);
+                actionGrid.appendChild(button);
+                return button;
+            };
+
+            let toastTimer = null;
+            const toast = document.createElement('div');
+            toast.className = 'bn-problem-workbench-toast';
+            toast.setAttribute('role', 'status');
+            toast.setAttribute('aria-live', 'polite');
+            const showToast = (message, type = 'success') => {
+                if (toastTimer) window.clearTimeout(toastTimer);
+                toast.textContent = message;
+                toast.dataset.type = type;
+                toast.classList.add('bn-show');
+                toastTimer = window.setTimeout(() => toast.classList.remove('bn-show'), 2600);
+            };
+
+            const scrollToElement = (element) => {
+                if (!element) return false;
+                element.scrollIntoView({behavior: 'smooth', block: 'start'});
+                return true;
+            };
+
+            createAction('提交代码', '⌘', () => {
+                const submitTarget = document.getElementById('submit_code')
+                    || document.querySelector('a[href="#submit_code"]')
+                    || document.querySelector('form[action*="/submit"]')
+                    || document.querySelector('.CodeMirror, textarea');
+                if (!scrollToElement(submitTarget)) showToast('未找到提交区域', 'error');
+            });
+
+            const planButton = createAction('加入明日计划', '+', async () => {
+                if (planButton.disabled) return;
+                planButton.disabled = true;
+                planButton.classList.add('bn-loading');
+                try {
+                    const addToPlan = window.__BN_addProblemToPlan;
+                    if (typeof addToPlan !== 'function') throw new Error('计划功能尚未加载，请稍后重试');
+                    const result = await addToPlan({pid: problemId});
+                    const dateText = result?.dateIso || '明日';
+                    showToast(result?.alreadyExists
+                        ? `本题已在 ${dateText} 的计划中`
+                        : `已加入 ${dateText} 的计划`);
+                    planButton.classList.add('bn-done');
+                } catch (error) {
+                    showToast(error?.message || '加入计划失败', 'error');
+                } finally {
+                    planButton.disabled = false;
+                    planButton.classList.remove('bn-loading');
+                }
+            });
+
+            const sectionTitle = document.createElement('div');
+            sectionTitle.className = 'bn-problem-workbench-section-title';
+            sectionTitle.textContent = '章节';
+            const toc = document.createElement('nav');
+            toc.className = 'bn-problem-workbench-toc';
+            toc.setAttribute('aria-label', '题面目录');
+
+            const getSectionHeadingText = (node) => {
+                if (!node) return '';
+                const clone = node.cloneNode(true);
+                clone.querySelectorAll('button, [role="button"], .button').forEach(control => control.remove());
+                return (clone.textContent || '').replace(/\s+/g, ' ').trim();
+            };
+
+            const sectionHeadings = Array.from(document.querySelectorAll('h2'))
+                .filter(node => getSectionHeadingText(node));
+            const tocEntries = [];
+            sectionHeadings.forEach((sectionHeading, index) => {
+                if (!sectionHeading.id) sectionHeading.id = `bn-problem-section-${index + 1}`;
+                const tocButton = document.createElement('button');
+                tocButton.type = 'button';
+                tocButton.textContent = getSectionHeadingText(sectionHeading);
+                tocButton.addEventListener('click', () => scrollToElement(sectionHeading));
+                toc.appendChild(tocButton);
+                tocEntries.push({heading: sectionHeading, button: tocButton});
+            });
+
+            if (!tocEntries.length) {
+                const empty = document.createElement('span');
+                empty.className = 'bn-problem-workbench-empty';
+                empty.textContent = '暂未识别到章节';
+                toc.appendChild(empty);
+            } else if (typeof IntersectionObserver === 'function') {
+                const observer = new IntersectionObserver((entries) => {
+                    const visible = entries
+                        .filter(entry => entry.isIntersecting)
+                        .sort((left, right) => left.boundingClientRect.top - right.boundingClientRect.top)[0];
+                    if (!visible) return;
+                    tocEntries.forEach(entry => entry.button.classList.toggle('bn-active', entry.heading === visible.target));
+                }, {rootMargin: '-72px 0px -65% 0px', threshold: [0, 1]});
+                tocEntries.forEach(entry => observer.observe(entry.heading));
+            }
+
+            body.append(problemName, actionGrid, sectionTitle, toc, toast);
+            workbench.append(header, body);
+            document.body.appendChild(workbench);
+
+            const setCollapsed = (collapsed) => {
+                workbench.classList.toggle('bn-collapsed', collapsed);
+                collapseButton.textContent = collapsed ? '‹' : '›';
+                collapseButton.setAttribute('aria-expanded', String(!collapsed));
+                collapseButton.setAttribute('aria-label', collapsed ? '展开题目目录' : '折叠题目目录');
+                try {
+                    GM_setValue('problemWorkbench.collapsed', collapsed);
+                } catch (_) { /* ignore */
+                }
+            };
+
+            let collapsed = false;
+            try {
+                collapsed = !!GM_getValue('problemWorkbench.collapsed', false);
+            } catch (_) { /* ignore */
+            }
+            setCollapsed(collapsed);
+            collapseButton.addEventListener('click', () => setCollapsed(!workbench.classList.contains('bn-collapsed')));
+        };
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => start(), {once: true});
+        } else {
+            start();
+        }
     }
 
     function fVjudgeLink() {
@@ -7710,6 +7923,7 @@
 
     if (enableCopy) fEasierClip();
     if (enableDescCopy) fEasierDescClip();
+    if (enableProblemWorkbench) initProblemWorkbench();
     if (enableMenu) initUserMenu();
     if (enableVjLink) fVjudgeLink();
 

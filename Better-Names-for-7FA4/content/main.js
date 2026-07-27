@@ -1577,6 +1577,56 @@ window.getCurrentUserId = getCurrentUserId;
         notify('[错误代码 C1] 提交未生效');
     }
 
+    window.__BN_addProblemToPlan = async function ({pid, dateIso} = {}) {
+        const problemId = Number(pid);
+        if (!Number.isFinite(problemId) || problemId <= 0) {
+            throw new Error('无法识别题目 ID');
+        }
+
+        const uid = getCurrentUserId();
+        if (!Number.isFinite(uid) || uid <= 0) {
+            throw new Error('无法识别当前用户');
+        }
+
+        const targetDate = (typeof dateIso === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateIso))
+            ? dateIso
+            : tomorrowISO();
+        const epoch = dateToEpoch(targetDate, CFG.tzOffsetHours);
+        const meta = await fetchPlanJSON({uid, epoch});
+        const existing = Array.isArray(meta.problemIds)
+            ? meta.problemIds.map(Number).filter(Number.isFinite)
+            : [];
+
+        if (existing.includes(problemId)) {
+            return {ok: true, alreadyExists: true, dateIso: targetDate, problemIds: existing};
+        }
+
+        const desired = [...existing, problemId];
+        const body = buildBody({
+            id: meta.id,
+            epoch,
+            uid,
+            values: desired,
+            plan: meta.plan,
+            result: meta.result,
+            tweak: meta.tweak
+        });
+        await postPlan(body, uid);
+
+        const after = await fetchPlanJSON({uid, epoch});
+        const savedIds = Array.isArray(after.problemIds)
+            ? after.problemIds.map(Number).filter(Number.isFinite)
+            : [];
+        if (!savedIds.includes(problemId)) {
+            throw new Error('计划保存后未找到当前题目');
+        }
+
+        planCache.set(targetDate, {...after, epoch});
+        return {ok: true, alreadyExists: false, dateIso: targetDate, problemIds: savedIds};
+    };
+
+    window.__BN_getDefaultPlanDate = tomorrowISO;
+
     /* ========= 模式切换 ========= */
     function enterMode() {
         modeOn = true;
