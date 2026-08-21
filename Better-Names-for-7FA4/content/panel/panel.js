@@ -170,14 +170,13 @@
     const enableAutoRenew = readConfigValue('enableAutoRenew');
     const SUPPORTED_PORTS = new Set(['', '8888', '5283']);
     const SUPPORTED_HOSTS = new Set(['7fa4.cn', '10.210.57.10', '211.137.101.118']);
-    const REMOTE_VERSION_URL = 'https://jx.7fa4.cn:9080/yx/better-names-for-7fa4/-/raw/main/version';
-    const REMOTE_VERSION_FALLBACK_URL = 'https://in.7fa4.cn:9080/yx/better-names-for-7fa4/-/raw/main/version';
-    const REMOTE_VERSION_URLS = [REMOTE_VERSION_URL, REMOTE_VERSION_FALLBACK_URL];
+    const REMOTE_VERSION_URL = 'https://api.github.com/repos/DestinyleSnowy/Better-Names-for-7FA4/releases/latest';
+    const REMOTE_VERSION_URLS = [REMOTE_VERSION_URL];
     const VERSION_LINE_PREFIX_RE = /^(?:version|ver)\s*[:=]\s*/i;
     const VERSION_CANDIDATE_RE = /^v?\d+(?:\.\d+){1,3}(?:[-_][0-9A-Za-z.-]+)?$/;
     const VERSION_CANDIDATE_IN_LINE_RE = /(v?\d+(?:\.\d+){1,3}(?:[-_][0-9A-Za-z.-]+)?)/i;
-    const UPDATE_PAGE_URL = 'https://jx.7fa4.cn:9080/yx/better-names-for-7fa4';
-    const UPDATE_MANUAL_SYNC_MESSAGE = '登录 Gitlab 同步最新版本';
+    const UPDATE_PAGE_URL = 'https://github.com/DestinyleSnowy/Better-Names-for-7FA4/releases';
+    const UPDATE_MANUAL_SYNC_MESSAGE = '无法自动检查更新，';
     const manifestVersion = normalizeVersionString(readManifestVersion());
     const manifestVersionInfo = parseComparableVersion(manifestVersion);
     const WELCOME_ENABLED = false;
@@ -7753,7 +7752,16 @@
         const showManualSyncNotice = () => {
             if (!noticeEl) return;
             const copyEl = noticeEl.querySelector('.bn-update-copy');
-            if (copyEl) copyEl.textContent = UPDATE_MANUAL_SYNC_MESSAGE;
+            if (copyEl) {
+                copyEl.textContent = '';
+                copyEl.appendChild(document.createTextNode(UPDATE_MANUAL_SYNC_MESSAGE));
+                const releaseLink = document.createElement('a');
+                releaseLink.href = UPDATE_PAGE_URL;
+                releaseLink.target = '_blank';
+                releaseLink.rel = 'noopener noreferrer';
+                releaseLink.textContent = '前往 GitHub Releases';
+                copyEl.appendChild(releaseLink);
+            }
             setUpdateNoticeState(noticeEl, 'error');
             noticeEl.classList.add('bn-visible');
             noticeEl.removeAttribute('hidden');
@@ -7786,7 +7794,12 @@
             if (!baseUrl) continue;
             try {
                 const rawText = await fetchRemotePanelVersionText(baseUrl);
-                const parsed = parseComparableVersion(rawText);
+                let versionText = rawText;
+                if (new URL(baseUrl).hostname === 'api.github.com') {
+                    const release = JSON.parse(rawText);
+                    versionText = release && typeof release.tag_name === 'string' ? release.tag_name : '';
+                }
+                const parsed = parseComparableVersion(versionText);
                 if (parsed) return parsed;
             } catch (error) {
                 lastError = error;
@@ -7800,7 +7813,8 @@
         const url = `${baseUrl}?_=${Date.now()}`;
         return new Promise((resolve, reject) => {
             const handleText = (text) => resolve(text || '');
-            if (typeof GM_xmlhttpRequest === 'function') {
+            const useCorsFetch = new URL(baseUrl).hostname === 'api.github.com';
+            if (!useCorsFetch && typeof GM_xmlhttpRequest === 'function') {
                 GM_xmlhttpRequest({
                     url,
                     method: 'GET',

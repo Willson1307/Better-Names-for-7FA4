@@ -25,7 +25,6 @@ Better Names for 7FA4 是一款面向 7FA4 在线评测系统的浏览器扩展�
 推荐从 Release 下载已经打包好的扩展压缩包：
 
 - GitHub Releases：<https://github.com/DestinyleSnowy/Better-Names-for-7FA4/releases>
-- GitLab Releases：<https://jx.7fa4.cn:9080/yx/better-names-for-7fa4>
 
 下载 `Better-Names-for-7FA4-<version>.zip` 后解压，然后在浏览器中加载解压后的 `Better-Names-for-7FA4` 目录。
 
@@ -47,7 +46,7 @@ Better Names for 7FA4 是一款面向 7FA4 在线评测系统的浏览器扩展�
 
 ## 更新
 
-发布版本会同步到 GitHub 与 GitLab。插件面板会尝试检查新版本；如果检查失败，可手动前往 Release 页面下载最新版并覆盖本地解压目录，再在扩展管理页点击刷新。
+发布版本仅同步到 GitHub。插件面板会尝试检查 GitHub Releases 中的最新版本；如果检查失败，可手动前往 Release 页面下载最新版并覆盖本地解压目录，再在扩展管理页点击刷新。
 
 建议保持最新版本，尤其是包含安全修复、数据库更新和 7FA4 页面兼容性调整的版本。
 
