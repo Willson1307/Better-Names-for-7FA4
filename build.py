@@ -205,7 +205,7 @@ class DependencyBuilder:
             import urllib.parse
             encoded_project_path = urllib.parse.quote(project_path, safe='')
             
-            api_url = f"http://jx.7fa4.cn:9080/api/v4/projects/{encoded_project_path}/releases"
+            api_url = f"https://jx.7fa4.cn:9080/api/v4/projects/{encoded_project_path}/releases"
             
             try:
                 headers = {}

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Better Names for 7FA4",
-  "version": "2026.9.2",
-  "version_name": "2026.09.02",
+  "version": "2026.10",
+  "version_name": "2026.10",
   "description": "强大的 7FA4 用户名与颜色映射插件",
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
@@ -17,15 +17,16 @@
     "webRequest"
   ],
   "host_permissions": [
-    "http://*.7fa4.cn:8888/*",
+    "https://cpp.7fa4.cn/*",
+    "https://*.7fa4.cn:8888/*",
     "http://*.7fa4.cn:5283/*",
-    "http://*.7fa4.cn:9080/*",
-    "http://10.210.57.10:8888/*",
+    "https://*.7fa4.cn:9080/*",
+    "https://10.210.57.10:8888/*",
     "http://10.210.57.10:5283/*",
-    "http://211.137.101.118:8888/*",
+    "https://211.137.101.118:8888/*",
     "http://211.137.101.118:5283/*",
-    "http://10.210.57.10:9080/*",
-    "http://211.137.101.118:9080/*",
+    "https://10.210.57.10:9080/*",
+    "https://211.137.101.118:9080/*",
     "https://gravatar.loli.net/*",
     "http://gravatar.loli.net/*"
   ],
@@ -42,17 +43,18 @@
   "content_scripts": [
     {
       "matches": [
-        "http://*.7fa4.cn:8888/*",
+        "https://cpp.7fa4.cn/*",
+        "https://*.7fa4.cn:8888/*",
         "http://*.7fa4.cn:5283/*",
-        "http://10.210.57.10:8888/*",
+        "https://10.210.57.10:8888/*",
         "http://10.210.57.10:5283/*",
-        "http://211.137.101.118:8888/*",
+        "https://211.137.101.118:8888/*",
         "http://211.137.101.118:5283/*"
       ],
       "exclude_matches": [
-        "http://*.7fa4.cn:9080/*",
-        "http://10.210.57.10:9080/*",
-        "http://211.137.101.118:9080/*"
+        "https://*.7fa4.cn:9080/*",
+        "https://10.210.57.10:9080/*",
+        "https://211.137.101.118:9080/*"
       ],
       "css": [
         "content/panel/panel.css",
@@ -77,28 +79,30 @@
     },
     {
       "matches": [
-        "http://in.7fa4.cn:8888/user_plans/*",
+        "https://cpp.7fa4.cn/user_plans/*",
+        "https://in.7fa4.cn:8888/user_plans/*",
         "http://in.7fa4.cn:5283/user_plans/*",
-        "http://jx.7fa4.cn:8888/user_plans/*",
+        "https://jx.7fa4.cn:8888/user_plans/*",
         "http://jx.7fa4.cn:5283/user_plans/*",
-        "http://10.210.57.10:8888/user_plans/*",
+        "https://10.210.57.10:8888/user_plans/*",
         "http://10.210.57.10:5283/user_plans/*",
-        "http://211.137.101.118:8888/user_plans/*",
+        "https://211.137.101.118:8888/user_plans/*",
         "http://211.137.101.118:5283/user_plans/*",
-        "http://in.7fa4.cn:8888/review/user_tags/html?tag_id=*",
+        "https://cpp.7fa4.cn/review/user_tags/html?tag_id=*",
+        "https://in.7fa4.cn:8888/review/user_tags/html?tag_id=*",
         "http://in.7fa4.cn:5283/review/user_tags/html?tag_id=*",
-        "http://jx.7fa4.cn:8888/review/user_tags/html?tag_id=*",
+        "https://jx.7fa4.cn:8888/review/user_tags/html?tag_id=*",
         "http://jx.7fa4.cn:5283/review/user_tags/html?tag_id=*",
-        "http://10.210.57.10:8888/review/user_tags/html?tag_id=*",
+        "https://10.210.57.10:8888/review/user_tags/html?tag_id=*",
         "http://10.210.57.10:5283/review/user_tags/html?tag_id=*",
-        "http://211.137.101.118:8888/review/user_tags/html?tag_id=*",
+        "https://211.137.101.118:8888/review/user_tags/html?tag_id=*",
         "http://211.137.101.118:5283/review/user_tags/html?tag_id=*"
       ],
       "exclude_matches": [
-        "http://in.7fa4.cn:9080/*",
-        "http://jx.7fa4.cn:9080/*",
-        "http://10.210.57.10:9080/*",
-        "http://211.137.101.118:9080/*"
+        "https://in.7fa4.cn:9080/*",
+        "https://jx.7fa4.cn:9080/*",
+        "https://10.210.57.10:9080/*",
+        "https://211.137.101.118:9080/*"
       ],
       "css": [
         "content/libs/katex/katex.min.css",
@@ -115,11 +119,12 @@
     },
     {
       "matches": [
-        "http://*.7fa4.cn:8888/user/*",
+        "https://cpp.7fa4.cn/user/*",
+        "https://*.7fa4.cn:8888/user/*",
         "http://*.7fa4.cn:5283/user/*",
-        "http://10.210.57.10:8888/user/*",
+        "https://10.210.57.10:8888/user/*",
         "http://10.210.57.10:5283/user/*",
-        "http://211.137.101.118:8888/user/*"
+        "https://211.137.101.118:8888/user/*"
       ],
       "css": [
         "content/libs/katex/katex.min.css"
@@ -145,9 +150,6 @@
         "content/panel/panel.html",
         "content/panel/avatar-blocker.js",
         "content/panel/donate.jpg",
-        "content/panel/welcome-panel-click.svg",
-        "content/panel/welcome-score-line.svg",
-        "content/panel/welcome-ranking-merge.svg",
         "CHANGELOG.md"
       ],
       "matches": [

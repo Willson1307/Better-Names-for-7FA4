@@ -15,7 +15,7 @@ from user_db_crypto import (
     read_uid_keys,
 )
 
-BASE = "http://jx.7fa4.cn:8888"
+BASE = "https://jx.7fa4.cn:8888"
 
 UID_START = 1
 DATA_DIR = Path(__file__).resolve().parents[1] / 'Better-Names-for-7FA4' / 'data'

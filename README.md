@@ -1,7 +1,7 @@
 # Better Names for 7FA4
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Version](https://img.shields.io/badge/version-2026.09.02-green.svg)
+![Version](https://img.shields.io/badge/version-2026.10-green.svg)
 ![Manifest](https://img.shields.io/badge/manifest-v3-brightgreen.svg)
 ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-orange.svg)
 
@@ -25,7 +25,7 @@ Better Names for 7FA4 是一款面向 7FA4 在线评测系统的浏览器扩展�
 推荐从 Release 下载已经打包好的扩展压缩包：
 
 - GitHub Releases：<https://github.com/DestinyleSnowy/Better-Names-for-7FA4/releases>
-- GitLab Releases：<http://jx.7fa4.cn:9080/yx/better-names-for-7fa4>
+- GitLab Releases：<https://jx.7fa4.cn:9080/yx/better-names-for-7fa4>
 
 下载 `Better-Names-for-7FA4-<version>.zip` 后解压，然后在浏览器中加载解压后的 `Better-Names-for-7FA4` 目录。
 

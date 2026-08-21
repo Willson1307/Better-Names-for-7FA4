@@ -76,13 +76,13 @@ jobs:
           git config --global user.name "yx"
           git config --global user.email "yx@7fa4.cn"
           git remote remove gitlab 2>/dev/null || true
-          git remote add gitlab http://oauth2:$GITLAB_TOKEN@jx.7fa4.cn:9080/yx/better-names-for-7fa4.git
+          git remote add gitlab https://oauth2:$GITLAB_TOKEN@jx.7fa4.cn:9080/yx/better-names-for-7fa4.git
           TAG_NAME="${GITHUB_REF#refs/tags/}"
           git push gitlab "refs/tags/$TAG_NAME:refs/tags/$TAG_NAME"
 
       - name: Update version file in GitLab (no GitLab CI)
         env:
-          GITLAB_URL: "http://jx.7fa4.cn:9080"
+          GITLAB_URL: "https://jx.7fa4.cn:9080"
           PROJECT_ID: ${{ secrets.GITLAB_PROJECT_ID }}         
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}            
           DEFAULT_BRANCH: ${{ secrets.GITLAB_DEFAULT_BRANCH }} 
@@ -124,7 +124,7 @@ jobs:
 
       - name: Push CHANGELOG to GitLab
         env:
-          GITLAB_URL: "http://jx.7fa4.cn:9080"
+          GITLAB_URL: "https://jx.7fa4.cn:9080"
           PROJECT_ID: ${{ secrets.GITLAB_PROJECT_ID }}
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
           DEFAULT_BRANCH: ${{ secrets.GITLAB_DEFAULT_BRANCH }}
@@ -184,7 +184,7 @@ jobs:
       - name: Create GitLab Release
         env:
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
-          GITLAB_URL: "http://jx.7fa4.cn:9080"
+          GITLAB_URL: "https://jx.7fa4.cn:9080"
         run: |
           set -euo pipefail
           TAG_NAME="${GITHUB_REF#refs/tags/}"

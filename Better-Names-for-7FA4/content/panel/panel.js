@@ -170,34 +170,21 @@
     const enableAutoRenew = readConfigValue('enableAutoRenew');
     const SUPPORTED_PORTS = new Set(['', '8888', '5283']);
     const SUPPORTED_HOSTS = new Set(['7fa4.cn', '10.210.57.10', '211.137.101.118']);
-    const REMOTE_VERSION_URL = 'http://jx.7fa4.cn:9080/yx/better-names-for-7fa4/-/raw/main/version';
-    const REMOTE_VERSION_FALLBACK_URL = 'http://in.7fa4.cn:9080/yx/better-names-for-7fa4/-/raw/main/version';
+    const REMOTE_VERSION_URL = 'https://jx.7fa4.cn:9080/yx/better-names-for-7fa4/-/raw/main/version';
+    const REMOTE_VERSION_FALLBACK_URL = 'https://in.7fa4.cn:9080/yx/better-names-for-7fa4/-/raw/main/version';
     const REMOTE_VERSION_URLS = [REMOTE_VERSION_URL, REMOTE_VERSION_FALLBACK_URL];
     const VERSION_LINE_PREFIX_RE = /^(?:version|ver)\s*[:=]\s*/i;
     const VERSION_CANDIDATE_RE = /^v?\d+(?:\.\d+){1,3}(?:[-_][0-9A-Za-z.-]+)?$/;
     const VERSION_CANDIDATE_IN_LINE_RE = /(v?\d+(?:\.\d+){1,3}(?:[-_][0-9A-Za-z.-]+)?)/i;
-    const UPDATE_PAGE_URL = 'http://jx.7fa4.cn:9080/yx/better-names-for-7fa4';
+    const UPDATE_PAGE_URL = 'https://jx.7fa4.cn:9080/yx/better-names-for-7fa4';
     const UPDATE_MANUAL_SYNC_MESSAGE = '登录 Gitlab 同步最新版本';
     const manifestVersion = normalizeVersionString(readManifestVersion());
     const manifestVersionInfo = parseComparableVersion(manifestVersion);
+    const WELCOME_ENABLED = false;
     const WELCOME_SEEN_VERSION_KEY = 'bn.welcome.seenVersion';
-    const WELCOME_PRESENTATION_REVISION = '2026.10-directory-v1';
-    const WELCOME_LETTER_PARAGRAPHS = [
-        '感谢每一位一直以来支持该插件的伙伴。你们的使用、反馈与陪伴，让这个小小的项目能够一点点走到今天，BN 难免会存在一些问题，还请大家多多包涵。',
-        '借此机会，BN 把祝福送给所有正在学习 OI 的同学，尤其是刚从 NOI 赛场凯旋归来的你们。',
-        '无论结果是否如愿，能够一路走到这里，本身就已经是一件很了不起的事。那些反复调试的深夜、面对难题时的坚持，以及赛场上的全力以赴，都不会因为一次成绩而失去意义。',
-        '一次比赛不能定义你的能力，也不能决定你的未来。若有遗憾，就允许自己失落一会儿，但不要因此否定走过的路。愿你依然保留对算法的热爱，也依然相信自己的潜力。',
-        '山高路远，步履不停。感谢大家一路同行，也祝每一位 OIer 都能继续走向属于自己的下一次突破！',
-    ];
-    const WELCOME_FEATURES = [
-        {
-            eyebrow: '2026.10 · 重大更新',
-            title: '题目目录，一眼直达',
-            description: '题目详情页新增可折叠目录，章节跳转更快；还可以直接定位提交区，或把当前题目加入明日计划。',
-            visual: 'problem-directory',
-            compact: true,
-        },
-    ];
+    const WELCOME_PRESENTATION_REVISION = '2026.10-no-cards';
+    const WELCOME_LETTER_PARAGRAPHS = [];
+    const WELCOME_FEATURES = [];
     const isSupportedHostname = (host) => {
         if (typeof host !== 'string' || !host) return false;
         if (SUPPORTED_HOSTS.has(host)) return true;
@@ -1758,6 +1745,7 @@
     }
 
     function shouldShowFirstLoadWelcome() {
+        if (!WELCOME_ENABLED) return false;
         if (!manifestVersion) return false;
         return readWelcomeSeenVersion() !== `${manifestVersion}|${WELCOME_PRESENTATION_REVISION}`;
     }

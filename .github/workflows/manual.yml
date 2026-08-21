@@ -53,7 +53,7 @@ jobs:
         if: inputs.publish_gitlab
         env:
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
-          GITLAB_URL: "http://jx.7fa4.cn:9080"
+          GITLAB_URL: "https://jx.7fa4.cn:9080"
           TAG_NAME: ${{ inputs.tag_name }}
         run: |
           set -euo pipefail
