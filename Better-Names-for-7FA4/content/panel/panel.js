@@ -97,6 +97,37 @@
         return path;
     };
 
+    // Gold-icon detection for "not passed / not started" problem rows. Uses several
+    // strategies so it stays robust against CSS Color 4 migration (getComputedStyle
+    // may return "rgb(255 215 0)", "oklch(...)", "color(srgb ...)") and against page
+    // CSS overriding the low-priority <font color="Gold"> presentational hint.
+    // Defined near the top on purpose: restoreOriginalConfig() runs before these
+    // quick-skip helpers are declared later in the file, and a const referenced
+    // from an earlier call while still in its temporal dead zone throws
+    // "Cannot access 'X' before initialization".
+    const BN_GOLD_COLOR_PATTERNS = [
+        /^gold$/i,
+        /^#(ffd700|ffb100|ffc107|ffd500)$/i,
+        /^rgba?\(\s*255\s*,\s*215\s*,\s*0\s*(?:,\s*1\s*)?\)$/i,
+        /^rgba?\(\s*255\s*,\s*193\s*,\s*7\s*(?:,\s*1\s*)?\)$/i,
+        /^rgba?\(\s*255\s+215\s+0\s*(?:\/\s*1\s*)?\)$/i,
+        /^rgba?\(\s*255\s+193\s+7\s*(?:\/\s*1\s*)?\)$/i,
+        /^hsla?\(\s*45\s*,\s*100%\s*,\s*50%\s*(?:,\s*1\s*)?\)$/i,
+        /^oklch\(\s*0\.8[0-9]*\s+0\.[0-9]+\s+8[0-9]/i,
+        /^color\(\s*srgb\s+1\s+0\.8[0-9]*\s+0/i,
+    ];
+    const BN_GOLD_FONT_COLORS = ['gold', 'yellow', '#ffd700', '#ffb100', '#ffc107', '#ffd500'];
+
+    // Problem tables on 7FA4 pages come in several class variants (some pages drop
+    // "center.aligned" or "very.basic" modifiers). Accept a small set of variants
+    // instead of one exact class string so a missing modifier cannot disable the
+    // feature, while still constraining matching to table elements.
+    const BN_TABLE_CLASS_VARIANTS = [
+        'ui very basic center aligned table',
+        'ui very basic table',
+        'ui basic center aligned table',
+    ];
+
     let ensureAvatarBlockerInstalled = () => false;
     let runAvatarSanitizer = () => {
     };
@@ -221,7 +252,7 @@
     };
     let enableQuickSkip = normalizeQuickSkip(rawQuickSkip);
     if (!quickSkipMigrated) {
-        if (enableQuickSkip === undefined || enableQuickSkip === false) {
+        if (enableQuickSkip === undefined) {
             enableQuickSkip = true;
         }
         try {
@@ -301,7 +332,6 @@
         palette: paletteConfig,
         debug: DEBUG,
     };
-    const BN_TABLE_ROWS_SELECTOR = 'table.ui.very.basic.center.aligned.table tbody tr';
     const MAX_LOCAL_BG_SIZE = 2 * 1024 * 1024;
     const MAX_CUSTOM_CSS_SIZE = 256 * 1024;
 
@@ -3253,7 +3283,12 @@
         checkChanged();
     };
     chkQuickSkip.onchange = () => {
+        // Persist immediately so a refresh / SPA navigation right after toggling
+        // does not fall back to the previously saved value (memory + storage stay
+        // in sync; the Save button still persists the full config).
+        enableQuickSkip = chkQuickSkip.checked;
         applyQuickSkip(chkQuickSkip.checked);
+        try { GM_setValue('enableQuickSkip', chkQuickSkip.checked); } catch (e) { /* ignore */ }
         checkChanged();
     };
     if (chkUserPlanDateNavigator) chkUserPlanDateNavigator.onchange = checkChanged;
@@ -3293,178 +3328,198 @@
     };
 
     document.getElementById('bn-save-config').onclick = () => {
-        if (chkTitleTrEl.checked) {
-            const v = parseInt(titleInp.value, 10);
-            if (isNaN(v) || v <= 0) {
-                alert('请输入大于 0 的正整数');
-                return;
+        try {
+            // Guard every DOM read so a missing control cannot crash the whole save.
+            if (chkTitleTrEl && chkTitleTrEl.checked) {
+                if (!titleInp) return alert('标题截断输入框缺失，无法保存');
+                const v = parseInt(titleInp.value, 10);
+                if (isNaN(v) || v <= 0) {
+                    alert('请输入大于 0 的正整数');
+                    return;
+                }
+                GM_setValue('maxTitleUnits', v);
+            } else {
+                GM_setValue('maxTitleUnits', 'none');
             }
-            GM_setValue('maxTitleUnits', v);
-        } else {
-            GM_setValue('maxTitleUnits', 'none');
-        }
-        if (chkUserTrEl.checked) {
-            const v = parseInt(userInp.value, 10);
-            if (isNaN(v) || v <= 0) {
-                alert('请输入大于 0 的正整数');
-                return;
+            if (chkUserTrEl && chkUserTrEl.checked) {
+                if (!userInp) return alert('用户名截断输入框缺失，无法保存');
+                const v = parseInt(userInp.value, 10);
+                if (isNaN(v) || v <= 0) {
+                    alert('请输入大于 0 的正整数');
+                    return;
+                }
+                GM_setValue('maxUserUnits', v);
+            } else {
+                GM_setValue('maxUserUnits', 'none');
             }
-            GM_setValue('maxUserUnits', v);
-        } else {
-            GM_setValue('maxUserUnits', 'none');
-        }
-        const widthModeValue = (widthModeSel && widthModeSel.value) ? widthModeSel.value : widthMode;
-        GM_setValue(WIDTH_MODE_KEY, widthModeValue);
+            const widthModeValue = (widthModeSel && widthModeSel.value) ? widthModeSel.value : widthMode;
+            GM_setValue(WIDTH_MODE_KEY, widthModeValue);
 
-        GM_setValue('hideAvatar', chkAv.checked);
-        hideAvatar = chkAv.checked;
-        if (hideAvatar && ensureAvatarBlockerInstalled(true)) {
-            runAvatarSanitizer();
-        }
-        GM_setValue('enableCopy', chkCp.checked);
-        GM_setValue('enableDescCopy', chkDescCp.checked);
-        GM_setValue('hideOrig', chkHo.checked);
-        GM_setValue('enableContestDownloadButtons', chkContestDownload.checked);
-        GM_setValue('enableContestReviewButtons', chkContestReview.checked);
-        GM_setValue('showUserNickname', chkShowNickname.checked);
-        GM_setValue('defaultHideSubmittedHomework', chkDefaultHideSubmittedHomework ? chkDefaultHideSubmittedHomework.checked : defaultHideSubmittedHomework);
-        GM_setValue('hideDoneSkip', chkHideDoneSkip.checked);
-        GM_setValue('enableQuickSkip', chkQuickSkip.checked);
-        GM_setValue('enableUserPlanDateNavigator', chkUserPlanDateNavigator ? chkUserPlanDateNavigator.checked : enableUserPlanDateNavigator);
-        GM_setValue('enablePaperEditor', chkPaperEditor ? chkPaperEditor.checked : enablePaperEditor);
-        GM_setValue('enableProblemWorkbench', chkProblemWorkbench ? chkProblemWorkbench.checked : enableProblemWorkbench);
-        GM_setValue('enableChatroom', chkChatroom ? chkChatroom.checked : enableChatroom);
-        GM_setValue('enableTitleOptimization', chkTitleOpt.checked);
-        GM_setValue('enableUserMenu', chkMenu.checked);
-        GM_setValue('enableVjLink', chkVj.checked);
-        GM_setValue('enablePlanAdder', true);
-        GM_setValue('enableTemplateBulkAdd', chkTemplateBulkAdd ? chkTemplateBulkAdd.checked : enableTemplateBulkAdd);
-        GM_setValue('enableAutoRenew', chkAutoRenew.checked);
-        GM_setValue('rankingFilter.enabled', chkRankingFilter.checked);
-        if (chkColumnSwitch) GM_setValue('rankingFilter.columnSwitch.enabled', chkColumnSwitch.checked);
-        if (chkMergeAssistant && !rankingMergeLockedForAdmin) {
-            GM_setValue('rankingMerge.enabled', chkMergeAssistant.checked);
-        }
+            const hideAvatarValue = chkAv ? chkAv.checked : originalConfig.hideAvatar;
+            GM_setValue('hideAvatar', hideAvatarValue);
+            hideAvatar = hideAvatarValue;
+            if (hideAvatarValue && ensureAvatarBlockerInstalled(true)) {
+                try { runAvatarSanitizer(); } catch (e) { debugLog('[save] avatar sanitizer failed', e); }
+            }
+            GM_setValue('enableCopy', chkCp ? chkCp.checked : originalConfig.enableCopy);
+            GM_setValue('enableDescCopy', chkDescCp ? chkDescCp.checked : originalConfig.enableDescCopy);
+            GM_setValue('hideOrig', chkHo ? chkHo.checked : originalConfig.hideOrig);
+            GM_setValue('enableContestDownloadButtons', chkContestDownload ? chkContestDownload.checked : originalConfig.enableContestDownloadButtons);
+            GM_setValue('enableContestReviewButtons', chkContestReview ? chkContestReview.checked : originalConfig.enableContestReviewButtons);
+            GM_setValue('showUserNickname', chkShowNickname ? chkShowNickname.checked : originalConfig.showUserNickname);
+            GM_setValue('defaultHideSubmittedHomework', chkDefaultHideSubmittedHomework ? chkDefaultHideSubmittedHomework.checked : defaultHideSubmittedHomework);
+            const hideDoneSkipValue = chkHideDoneSkip ? chkHideDoneSkip.checked : originalConfig.hideDoneSkip;
+            GM_setValue('hideDoneSkip', hideDoneSkipValue);
+            const quickSkipValue = chkQuickSkip ? chkQuickSkip.checked : originalConfig.enableQuickSkip;
+            GM_setValue('enableQuickSkip', quickSkipValue);
+            // Keep the in-memory flag in sync with what was saved so the observer and
+            // subsequent renders use the newly persisted value, not a stale one.
+            enableQuickSkip = quickSkipValue;
+            GM_setValue('enableUserPlanDateNavigator', chkUserPlanDateNavigator ? chkUserPlanDateNavigator.checked : enableUserPlanDateNavigator);
+            GM_setValue('enablePaperEditor', chkPaperEditor ? chkPaperEditor.checked : enablePaperEditor);
+            GM_setValue('enableProblemWorkbench', chkProblemWorkbench ? chkProblemWorkbench.checked : enableProblemWorkbench);
+            GM_setValue('enableChatroom', chkChatroom ? chkChatroom.checked : enableChatroom);
+            GM_setValue('enableTitleOptimization', chkTitleOpt ? chkTitleOpt.checked : originalConfig.enableTitleOptimization);
+            GM_setValue('enableUserMenu', chkMenu ? chkMenu.checked : originalConfig.enableMenu);
+            GM_setValue('enableVjLink', chkVj ? chkVj.checked : originalConfig.enableVjLink);
+            GM_setValue('enablePlanAdder', true);
+            GM_setValue('enableTemplateBulkAdd', chkTemplateBulkAdd ? chkTemplateBulkAdd.checked : enableTemplateBulkAdd);
+            GM_setValue('enableAutoRenew', chkAutoRenew ? chkAutoRenew.checked : originalConfig.enableAutoRenew);
+            GM_setValue('rankingFilter.enabled', chkRankingFilter ? chkRankingFilter.checked : originalConfig.enableRankingFilter);
+            if (chkColumnSwitch) GM_setValue('rankingFilter.columnSwitch.enabled', chkColumnSwitch.checked);
+            if (chkMergeAssistant && !rankingMergeLockedForAdmin) {
+                GM_setValue('rankingMerge.enabled', chkMergeAssistant.checked);
+            }
 
-        const obj = {};
-        COLOR_KEYS.forEach(k => {
-            if (colorPickers[k]) obj[k] = colorPickers[k].value;
-        });
-        GM_setValue('userPalette', JSON.stringify(obj));
-        GM_setValue('useCustomColors', chkUseColor.checked);
-        GM_setValue('codeThemeEnabled', currentCodeThemeEnabled);
-        GM_setValue('codeThemeSource', currentCodeThemeSource);
-        GM_setValue('customThemeCss', currentCustomThemeCss);
-        GM_setValue('customThemeCssName', currentCustomThemeCssName);
-        if (typeof window.__BN_applyCodeThemePreference === 'function') {
-            window.__BN_applyCodeThemePreference(currentCodeThemeEnabled, currentCodeThemeSource, currentCustomThemeCss);
+            const obj = {};
+            COLOR_KEYS.forEach(k => {
+                if (colorPickers[k]) obj[k] = colorPickers[k].value;
+            });
+            GM_setValue('userPalette', JSON.stringify(obj));
+            GM_setValue('useCustomColors', chkUseColor ? chkUseColor.checked : originalConfig.useCustomColors);
+            GM_setValue('codeThemeEnabled', currentCodeThemeEnabled);
+            GM_setValue('codeThemeSource', currentCodeThemeSource);
+            GM_setValue('customThemeCss', currentCustomThemeCss);
+            GM_setValue('customThemeCssName', currentCustomThemeCssName);
+            if (typeof window.__BN_applyCodeThemePreference === 'function') {
+                try { window.__BN_applyCodeThemePreference(currentCodeThemeEnabled, currentCodeThemeSource, currentCustomThemeCss); } catch (e) { debugLog('[save] code theme preference failed', e); }
+            }
+            originalConfig.codeThemeEnabled = currentCodeThemeEnabled;
+            originalConfig.codeThemeSource = currentCodeThemeSource;
+            originalConfig.customThemeCss = currentCustomThemeCss;
+            originalConfig.customThemeCssName = currentCustomThemeCssName;
+            const themeColorValue = themeColorInput ? normalizeHexColor(themeColorInput.value, originalConfig.themeColor) : originalConfig.themeColor;
+            GM_setValue('themeColor', themeColorValue);
+            container.style.setProperty('--bn-theme-color', themeColorValue);
+            if (themeColorInput) themeColorInput.value = themeColorValue;
+            if (themeColorHexInput) themeColorHexInput.value = themeColorValue;
+            originalConfig.themeColor = themeColorValue;
+            const nextThemeMode = getSelectedThemeMode();
+            GM_setValue('panelThemeMode', nextThemeMode);
+            originalConfig.themeMode = nextThemeMode;
+            applyThemeMode(nextThemeMode);
+            const bgEnabled = bgEnabledInput ? bgEnabledInput.checked : false;
+            const bgfillway = normalizeBgFillway(bgfillwayInput ? bgfillwayInput.value : CONFIG_DEFAULTS.bg_fillway);
+            const rawBgUrl = bgUrlInput ? bgUrlInput.value.trim() : '';
+            const bgOpacityRaw = bgOpacityInput ? bgOpacityInput.value : normalizedBgOpacity;
+            const bgBlurRaw = bgBlurInput ? bgBlurInput.value : normalizedBgBlur;
+            const bgOpacity = String(clampOpacity(bgOpacityRaw));
+            const bgBlur = clampBlur(bgBlurRaw);
+            const btEnabled = getHiToiletEnabledState();
+            const btInterval = hiToiletIntervalInput ? clampHiToiletInterval(hiToiletIntervalInput.value) : originalConfig.btInterval;
+            let bgImageSourceType = (currentBgSourceType === 'local' && currentBgImageData) ? 'local' : 'remote';
+            let bgImageUrlToSave = rawBgUrl;
+            let bgImageDataToSave = '';
+            let bgImageDataNameToSave = '';
+            if (bgImageSourceType === 'local') {
+                bgImageUrlToSave = '';
+                bgImageDataToSave = currentBgImageData;
+                bgImageDataNameToSave = currentBgImageDataName || '';
+            }
+            const overlaySource = bgImageSourceType === 'local' && bgImageDataToSave ? bgImageDataToSave : bgImageUrlToSave;
+
+            GM_setValue('bg_enabled', bgEnabled);
+            GM_setValue('bg_fillway', bgfillway);
+            debugLog('Saved bg fillway', bgfillway);
+            GM_setValue('bg_imageSourceType', bgImageSourceType);
+            GM_setValue('bg_imageUrl', bgImageUrlToSave);
+            GM_setValue('bg_imageData', bgImageDataToSave);
+            GM_setValue('bg_imageDataName', bgImageDataNameToSave);
+            GM_setValue('bg_opacity', bgOpacity);
+            GM_setValue('bg_blur', bgBlur);
+            GM_setValue('bt_enabled', btEnabled);
+            GM_setValue('bt_interval', btInterval);
+            originalConfig.btInterval = btInterval;
+            originalConfig.btEnabled = btEnabled;
+            originalConfig.bgEnabled = bgEnabled;
+            originalConfig.bgImageUrl = bgImageUrlToSave;
+            originalConfig.bgImageData = bgImageDataToSave;
+            originalConfig.bgImageDataName = bgImageDataNameToSave;
+            originalConfig.bgSourceType = bgImageSourceType;
+            originalConfig.bgOpacity = bgOpacity;
+            originalConfig.bgBlur = bgBlur;
+            currentBgSourceType = bgImageSourceType;
+            currentBgImageData = bgImageDataToSave;
+            currentBgImageDataName = bgImageDataNameToSave;
+
+            try { updateBgSourceUI(); } catch (e) { debugLog('[save] updateBgSourceUI failed', e); }
+            try { applyBackgroundOverlay(bgEnabled, bgfillway, overlaySource, bgOpacity, bgBlur); } catch (e) { debugLog('[save] applyBackgroundOverlay failed', e); }
+            if (bgOpacityInput) bgOpacityInput.value = bgOpacity;
+            if (bgOpacityValueSpan) bgOpacityValueSpan.textContent = formatOpacityText(bgOpacity);
+            if (bgBlurInput) bgBlurInput.value = bgBlur;
+            if (bgBlurValueSpan) bgBlurValueSpan.textContent = formatBlurText(bgBlur);
+
+            // Give chrome.storage.local.set (used by GM_setValue) enough time to
+            // flush before reloading; 50 ms was too short on some machines.
+            setTimeout(() => location.reload(), 300);
+        } catch (e) {
+            debugLog('[save] save failed', e);
+            alert('保存配置失败：' + (e && e.message ? e.message : String(e)));
         }
-        originalConfig.codeThemeEnabled = currentCodeThemeEnabled;
-        originalConfig.codeThemeSource = currentCodeThemeSource;
-        originalConfig.customThemeCss = currentCustomThemeCss;
-        originalConfig.customThemeCssName = currentCustomThemeCssName;
-        const themeColorValue = themeColorInput ? normalizeHexColor(themeColorInput.value, originalConfig.themeColor) : originalConfig.themeColor;
-        GM_setValue('themeColor', themeColorValue);
-        container.style.setProperty('--bn-theme-color', themeColorValue);
-        if (themeColorInput) themeColorInput.value = themeColorValue;
-        if (themeColorHexInput) themeColorHexInput.value = themeColorValue;
-        originalConfig.themeColor = themeColorValue;
-        const nextThemeMode = getSelectedThemeMode();
-        GM_setValue('panelThemeMode', nextThemeMode);
-        originalConfig.themeMode = nextThemeMode;
-        applyThemeMode(nextThemeMode);
-        const bgEnabled = bgEnabledInput ? bgEnabledInput.checked : false;
-        const bgfillway = normalizeBgFillway(bgfillwayInput.value);
-        const rawBgUrl = bgUrlInput ? bgUrlInput.value.trim() : '';
-        const bgOpacityRaw = bgOpacityInput ? bgOpacityInput.value : normalizedBgOpacity;
-        const bgBlurRaw = bgBlurInput ? bgBlurInput.value : normalizedBgBlur;
-        const bgOpacity = String(clampOpacity(bgOpacityRaw));
-        const bgBlur = clampBlur(bgBlurRaw);
-        const btEnabled = getHiToiletEnabledState();
-        const btInterval = hiToiletIntervalInput ? clampHiToiletInterval(hiToiletIntervalInput.value) : originalConfig.btInterval;
-        let bgImageSourceType = (currentBgSourceType === 'local' && currentBgImageData) ? 'local' : 'remote';
-        let bgImageUrlToSave = rawBgUrl;
-        let bgImageDataToSave = '';
-        let bgImageDataNameToSave = '';
-        if (bgImageSourceType === 'local') {
-            bgImageUrlToSave = '';
-            bgImageDataToSave = currentBgImageData;
-            bgImageDataNameToSave = currentBgImageDataName || '';
-        }
-        const overlaySource = bgImageSourceType === 'local' && bgImageDataToSave ? bgImageDataToSave : bgImageUrlToSave;
-
-        GM_setValue('bg_enabled', bgEnabled);
-        GM_setValue('bg_fillway', bgfillway);
-        debugLog('Saved bg fillway', bgfillway);
-        GM_setValue('bg_imageSourceType', bgImageSourceType);
-        GM_setValue('bg_imageUrl', bgImageUrlToSave);
-        GM_setValue('bg_imageData', bgImageDataToSave);
-        GM_setValue('bg_imageDataName', bgImageDataNameToSave);
-        GM_setValue('bg_opacity', bgOpacity);
-        GM_setValue('bg_blur', bgBlur);
-        GM_setValue('bt_enabled', btEnabled);
-        GM_setValue('bt_interval', btInterval);
-        originalConfig.btInterval = btInterval;
-        originalConfig.btEnabled = btEnabled;
-        originalConfig.bgEnabled = bgEnabled;
-        originalConfig.bgImageUrl = bgImageUrlToSave;
-        originalConfig.bgImageData = bgImageDataToSave;
-        originalConfig.bgImageDataName = bgImageDataNameToSave;
-        originalConfig.bgSourceType = bgImageSourceType;
-        originalConfig.bgOpacity = bgOpacity;
-        originalConfig.bgBlur = bgBlur;
-        currentBgSourceType = bgImageSourceType;
-        currentBgImageData = bgImageDataToSave;
-        currentBgImageDataName = bgImageDataNameToSave;
-
-        updateBgSourceUI();
-        applyBackgroundOverlay(bgEnabled, bgfillway, overlaySource, bgOpacity, bgBlur);
-        if (bgOpacityInput) bgOpacityInput.value = bgOpacity;
-        if (bgOpacityValueSpan) bgOpacityValueSpan.textContent = formatOpacityText(bgOpacity);
-        if (bgBlurInput) bgBlurInput.value = bgBlur;
-        if (bgBlurValueSpan) bgBlurValueSpan.textContent = formatBlurText(bgBlur);
-
-        setTimeout(() => location.reload(), 50);
     };
 
     function restoreOriginalConfig() {
-        chkTitleTrEl.checked = originalConfig.titleTruncate;
-        chkUserTrEl.checked = originalConfig.userTruncate;
-        titleInp.value = isFinite(originalConfig.maxTitleUnits) ? originalConfig.maxTitleUnits : '';
-        userInp.value = isFinite(originalConfig.maxUserUnits) ? originalConfig.maxUserUnits : '';
+        if (chkTitleTrEl) chkTitleTrEl.checked = originalConfig.titleTruncate;
+        if (chkUserTrEl) chkUserTrEl.checked = originalConfig.userTruncate;
+        if (titleInp) titleInp.value = isFinite(originalConfig.maxTitleUnits) ? originalConfig.maxTitleUnits : '';
+        if (userInp) userInp.value = isFinite(originalConfig.maxUserUnits) ? originalConfig.maxUserUnits : '';
         if (widthModeSel) widthModeSel.value = originalConfig.widthMode;
-        chkAv.checked = originalConfig.hideAvatar;
-        chkCp.checked = originalConfig.enableCopy;
-        chkDescCp.checked = originalConfig.enableDescCopy;
-        chkHo.checked = originalConfig.hideOrig;
-        chkContestDownload.checked = originalConfig.enableContestDownloadButtons;
-        chkContestReview.checked = originalConfig.enableContestReviewButtons;
-        chkShowNickname.checked = originalConfig.showUserNickname;
+        if (chkAv) chkAv.checked = originalConfig.hideAvatar;
+        if (chkCp) chkCp.checked = originalConfig.enableCopy;
+        if (chkDescCp) chkDescCp.checked = originalConfig.enableDescCopy;
+        if (chkHo) chkHo.checked = originalConfig.hideOrig;
+        if (chkContestDownload) chkContestDownload.checked = originalConfig.enableContestDownloadButtons;
+        if (chkContestReview) chkContestReview.checked = originalConfig.enableContestReviewButtons;
+        if (chkShowNickname) chkShowNickname.checked = originalConfig.showUserNickname;
         if (chkDefaultHideSubmittedHomework) chkDefaultHideSubmittedHomework.checked = originalConfig.defaultHideSubmittedHomework;
-        chkMenu.checked = originalConfig.enableMenu;
-        chkVj.checked = originalConfig.enableVjLink;
-        chkHideDoneSkip.checked = originalConfig.hideDoneSkip;
+        if (chkMenu) chkMenu.checked = originalConfig.enableMenu;
+        if (chkVj) chkVj.checked = originalConfig.enableVjLink;
+        if (chkHideDoneSkip) chkHideDoneSkip.checked = originalConfig.hideDoneSkip;
         applyHideDoneSkip(originalConfig.hideDoneSkip);
-        chkQuickSkip.checked = originalConfig.enableQuickSkip;
+        if (chkQuickSkip) chkQuickSkip.checked = originalConfig.enableQuickSkip;
+        enableQuickSkip = originalConfig.enableQuickSkip;
+        // Write storage back too: onchange now persists immediately, so resetting
+        // without this would leave a stale value in storage for the next load.
+        try { GM_setValue('enableQuickSkip', originalConfig.enableQuickSkip); } catch (e) { /* ignore */ }
         applyQuickSkip(originalConfig.enableQuickSkip);
         if (chkUserPlanDateNavigator) chkUserPlanDateNavigator.checked = originalConfig.enableUserPlanDateNavigator;
         if (chkPaperEditor) chkPaperEditor.checked = originalConfig.enablePaperEditor;
         if (chkProblemWorkbench) chkProblemWorkbench.checked = originalConfig.enableProblemWorkbench;
         if (chkChatroom) chkChatroom.checked = originalConfig.enableChatroom;
-        chkTitleOpt.checked = originalConfig.enableTitleOptimization;
+        if (chkTitleOpt) chkTitleOpt.checked = originalConfig.enableTitleOptimization;
         if (chkTemplateBulkAdd) chkTemplateBulkAdd.checked = originalConfig.enableTemplateBulkAdd;
         const bulkEnabled = chkTemplateBulkAdd ? chkTemplateBulkAdd.checked : originalConfig.enableTemplateBulkAdd;
         applyTemplateBulkAddButton(bulkEnabled);
         scheduleTemplateBulkButton(bulkEnabled);
-        chkAutoRenew.checked = originalConfig.enableAutoRenew;
-        chkRankingFilter.checked = originalConfig.enableRankingFilter;
+        if (chkAutoRenew) chkAutoRenew.checked = originalConfig.enableAutoRenew;
+        if (chkRankingFilter) chkRankingFilter.checked = originalConfig.enableRankingFilter;
         if (chkColumnSwitch) chkColumnSwitch.checked = originalConfig.columnSwitchEnabled;
         if (chkMergeAssistant) chkMergeAssistant.checked = originalConfig.mergeAssistantEnabled;
-        chkUseColor.checked = originalConfig.useCustomColors;
+        if (chkUseColor) chkUseColor.checked = originalConfig.useCustomColors;
         if (hiToiletInput) hiToiletInput.checked = originalConfig.btEnabled;
         setHiToiletIntervalDisplay(originalConfig.btInterval);
-        titleInp.disabled = !chkTitleTrEl.checked;
-        userInp.disabled = !chkUserTrEl.checked;
+        if (titleInp) titleInp.disabled = !(chkTitleTrEl && chkTitleTrEl.checked);
+        if (userInp) userInp.disabled = !(chkUserTrEl && chkUserTrEl.checked);
         if (chkUseColor.checked) {
             container.classList.add('bn-expanded');
             panel.classList.add('bn-expanded');
@@ -4798,9 +4853,16 @@
                 }
             }
         }
-        if (!pid) return null;
+        if (!pid) {
+            debugLog('[quickSkip] getProblemIdFromRow: no pid found in row');
+            return null;
+        }
         // Only allow problem IDs that are all-digits (positive integers)
-        if (!/^\d+$/.test(String(pid))) return null;
+        if (!/^\d+$/.test(String(pid))) {
+            debugLog('[quickSkip] getProblemIdFromRow: rejected non-numeric pid =', String(pid).slice(0, 40));
+            return null;
+        }
+        debugLog('[quickSkip] getProblemIdFromRow: pid =', String(pid), 'via', dataEl ? 'data-attr' : 'problem link');
         return String(pid);
     }
 
@@ -4861,22 +4923,58 @@
         });
     }
 
-    function analyzeQuickSkipRow(tr) {
-        if (!tr || !tr.cells) return {qualifies: false, insertIndex: null, questionIcon: false};
-        const cells = Array.from(tr.cells);
-        if (!cells.length) return {qualifies: false, insertIndex: null, questionIcon: false};
+    function normalizeComputedColor(raw) {
+        return String(raw || '')
+            .toLowerCase()
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
 
-        const questionIconEl = Array.from(tr.querySelectorAll('i.question.icon')).find(icon => {
-            if (!icon) return false;
-            const cs = getComputedStyle(icon || {});
-            const col = (cs && (cs.color || cs.fill || '') || '').toLowerCase();
-            if (!icon.classList.contains('gold') && !icon.classList.contains('yellow') && !/gold|yellow|#ffd700|#ffb100|#ffc107|rgb\(\s*255\s*,\s*215\s*,\s*0\s*\)|rgb\(\s*255\s*,\s*193\s*,\s*7\s*\)/i.test(col)) return false;
-            const skipCell = icon.closest('td[data-bn-quick-skip-cell="1"]');
-            return !skipCell;
-        });
-        if (!questionIconEl) return {qualifies: false, insertIndex: null, questionIcon: false};
+    function isQuestionIconGold(icon) {
+        if (!icon || !icon.classList) return false;
+        if (icon.classList.contains('gold') || icon.classList.contains('yellow')) {
+            debugLog('[quickSkip] isQuestionIconGold: matched by class');
+            return true;
+        }
+        const style = getComputedStyle(icon);
+        const computed = normalizeComputedColor((style && (style.color || style.fill)) || '');
+        if (computed && BN_GOLD_COLOR_PATTERNS.some(re => re.test(computed))) {
+            debugLog('[quickSkip] isQuestionIconGold: matched computed color =', computed);
+            return true;
+        }
+        // The platform marks not-started problems with <font color="Gold">. This
+        // attribute survives any author CSS that overrides the computed color.
+        const fontEl = icon.closest('font[color]');
+        if (fontEl) {
+            const fontColor = (fontEl.getAttribute('color') || '').trim().toLowerCase();
+            if (BN_GOLD_FONT_COLORS.includes(fontColor)) {
+                debugLog('[quickSkip] isQuestionIconGold: matched font[color] =', fontColor);
+                return true;
+            }
+        }
+        // Final fallback: treat the row as "not started" if it carries a question
+        // icon and shows no passed / skipped marker (same heuristic as
+        // __bn_shouldHideRow). Covers unrecognized color formats while keeping the
+        // marker check so a green check row can never qualify.
+        const row = icon.closest('tr');
+        if (row && row.querySelector) {
+            const passMarker = row.querySelector('.status.accepted, .status .accepted, span.status.accepted, i.checkmark.icon, i.thumbs.up.icon, i.check.icon');
+            const skipIcon = row.querySelector('i.coffee.icon');
+            const isSkipped = !!(skipIcon && !skipIcon.closest('a[data-bn-quick-skip="1"]'));
+            if (!passMarker && !isSkipped) {
+                debugLog('[quickSkip] isQuestionIconGold: matched by not-started DOM fallback');
+                return true;
+            }
+        }
+        debugLog('[quickSkip] isQuestionIconGold: NOT gold (computed =', String(computed).slice(0, 80),
+            ', font[color] =', fontEl ? (fontEl.getAttribute('color') || '').slice(0, 40) : '(none)', ')');
+        return false;
+    }
 
-        let computedIndex = null;
+    // Decide where to place the skip column for a row. Falls back to safer
+    // candidates so a single oddly-structured row cannot null out the whole table.
+    function computeQuickSkipInsertColumn(cells) {
+        if (!cells || !cells.length) return 1;
 
         // Prefer the problem code cell (usually wrapped in <b>) to anchor text to avoid
         // placing the skip column after the title when titles start with Latin letters.
@@ -4888,22 +4986,51 @@
             if (/^L/i.test(text)) return false;
             return /^[A-Za-z]/.test(text);
         });
-        if (codeCellIndex > -1) computedIndex = codeCellIndex;
+        if (codeCellIndex > -1) return codeCellIndex;
 
-        if (computedIndex === null) {
-            const anchorIndex = cells.findIndex(td => {
-                const anchor = td.querySelector('a[href^="/problem/"]');
-                if (!anchor || anchor.getAttribute('data-bn-quick-skip') === '1') return false;
-                const text = (anchor.textContent || '').trim();
-                if (!text) return false;
-                if (/^L/i.test(text)) return false;
-                if (!/[0-9]/.test(text)) return false; // titles with letters but no digits should not drive placement
-                return /^[A-Za-z]/.test(text);
-            });
-            if (anchorIndex > -1) computedIndex = anchorIndex + 1;
+        const anchorIndex = cells.findIndex(td => {
+            const anchor = td.querySelector('a[href^="/problem/"]');
+            if (!anchor || anchor.getAttribute('data-bn-quick-skip') === '1') return false;
+            const text = (anchor.textContent || '').trim();
+            if (!text) return false;
+            if (/^L/i.test(text)) return false;
+            if (!/[0-9]/.test(text)) return false; // titles with letters but no digits should not drive placement
+            return /^[A-Za-z]/.test(text);
+        });
+        if (anchorIndex > -1) return anchorIndex + 1;
+
+        // Fallback 1: first column that links to a problem.
+        const anyAnchorIndex = cells.findIndex(td => !!td.querySelector('a[href^="/problem/"]'));
+        if (anyAnchorIndex > -1) return anyAnchorIndex + 1;
+
+        // Fallback 2: last non-empty data column.
+        for (let i = cells.length - 1; i >= 0; i--) {
+            if ((cells[i].textContent || '').trim()) return i + 1;
+        }
+        // Fallback 3: safe default (status column + 1).
+        return 1;
+    }
+
+    function analyzeQuickSkipRow(tr) {
+        if (!tr || !tr.cells) return {qualifies: false, insertIndex: null, questionIcon: false};
+        const cells = Array.from(tr.cells);
+        if (!cells.length) return {qualifies: false, insertIndex: null, questionIcon: false};
+
+        const iconList = Array.from(tr.querySelectorAll('i.question.icon'));
+        const questionIconEl = iconList.find(icon => {
+            if (!icon) return false;
+            const skipCell = icon.closest('td[data-bn-quick-skip-cell="1"]');
+            if (skipCell) return false;
+            return isQuestionIconGold(icon);
+        });
+        if (!questionIconEl) {
+            debugLog('[quickSkip] analyzeQuickSkipRow: no gold question icon (icons =', iconList.length,
+                '), row skipped.', (tr.textContent || '').trim().slice(0, 60));
+            return {qualifies: false, insertIndex: null, questionIcon: false};
         }
 
-        if (computedIndex === null) return {qualifies: false, insertIndex: null, questionIcon: true};
+        const computedIndex = computeQuickSkipInsertColumn(cells);
+        debugLog('[quickSkip] analyzeQuickSkipRow: gold icon found, insert column =', computedIndex);
 
         return {qualifies: true, insertIndex: computedIndex, questionIcon: true};
     }
@@ -4987,12 +5114,25 @@
         return btn;
     }
 
+    // A table matches if every token of one of the variants is present in its
+    // class attribute (order-insensitive, extra classes allowed).
+    function isTargetTable(el) {
+        if (!el || el.tagName !== 'TABLE') return false;
+        const classes = ' ' + String(el.className || '').trim().replace(/\s+/g, ' ') + ' ';
+        return BN_TABLE_CLASS_VARIANTS.some(variant =>
+            variant.split(' ').every(token => classes.includes(' ' + token + ' '))
+        );
+    }
+
     function isQuickSkipProhibitedTable(table) {
         if (!table) return false;
         const path = (location && typeof location.pathname === 'string') ? location.pathname : '';
         const normalizedPath = path ? path.replace(/\/+/g, '/').replace(/\/$/, '') : '';
         const isHomePath = normalizedPath === '' || normalizedPath === '/' || normalizedPath === '/index' || normalizedPath === '/index.html';
-        if (isHomePath) return true;
+        if (isHomePath) {
+            debugLog('[quickSkip] prohibited: home path', JSON.stringify(normalizedPath), '-> table skipped');
+            return true;
+        }
         if (normalizedPath === '/problems') {
             const search = (location && typeof location.search === 'string') ? location.search : '';
             let hasMyTemplates = false;
@@ -5004,9 +5144,18 @@
                     hasMyTemplates = /\bmy_templates=/.test(search);
                 }
             }
-            if (hasMyTemplates) return true;
+            if (hasMyTemplates) {
+                debugLog('[quickSkip] prohibited: /problems?my_templates -> table skipped');
+                return true;
+            }
         }
-        return !!(table.querySelector('tbody#announces'));
+        const hasAnnounces = !!table.querySelector('tbody#announces');
+        if (hasAnnounces) {
+            debugLog('[quickSkip] prohibited: tbody#announces present -> table skipped');
+            return true;
+        }
+        debugLog('[quickSkip] prohibited: allowed (path =', JSON.stringify(normalizedPath), ')');
+        return false;
     }
 
     function ensureQuickSkipCellAt(tr, insertIndex) {
@@ -5036,25 +5185,36 @@
             const info = analyzeQuickSkipRow(tr);
             if (info && info.qualifies && typeof info.insertIndex === 'number') return info.insertIndex;
         }
+        // No qualifying row found: fall back to a safe default insert column so the
+        // whole table is not skipped silently. A single row whose detection failed
+        // (e.g. odd structure, non-gold computed color) should not disable the
+        // feature for every row.
+        if (rows.length) {
+            const fallback = computeQuickSkipInsertColumn(Array.from(rows[0].cells));
+            debugLog('[quickSkip] computeQuickSkipInsertIndex: no qualifying row, fallback column =', fallback);
+            return typeof fallback === 'number' ? fallback : 1;
+        }
         return null;
     }
 
     function applyQuickSkip(enabled, scopeRoot) {
         const roots = [];
         if (scopeRoot && typeof scopeRoot.querySelectorAll === 'function') roots.push(scopeRoot);
-        if (scopeRoot && scopeRoot.matches && scopeRoot.matches(BN_TABLE_ROWS_SELECTOR)) roots.push(scopeRoot);
+        if (scopeRoot && scopeRoot.matches && scopeRoot.matches('tbody tr')) roots.push(scopeRoot);
         if (!roots.length) roots.push(document);
 
         const tables = new Set();
         roots.forEach(root => {
             if (!root) return;
-            if (root.matches && root.matches('table.ui.very.basic.center.aligned.table')) tables.add(root);
-            if (root.matches && root.matches(BN_TABLE_ROWS_SELECTOR)) {
-                const tbl = root.closest('table.ui.very.basic.center.aligned.table');
-                if (tbl) tables.add(tbl);
+            if (root.matches && root.matches('table') && isTargetTable(root)) tables.add(root);
+            if (root.matches && root.matches('tbody tr')) {
+                const tbl = root.closest('table');
+                if (tbl && isTargetTable(tbl)) tables.add(tbl);
             }
             if (root.querySelectorAll) {
-                root.querySelectorAll('table.ui.very.basic.center.aligned.table').forEach(tbl => tables.add(tbl));
+                root.querySelectorAll('table').forEach(tbl => {
+                    if (isTargetTable(tbl)) tables.add(tbl);
+                });
             }
         });
 
@@ -5070,27 +5230,39 @@
             }
 
             const insertIndex = computeQuickSkipInsertIndex(table, rows);
-            if (insertIndex === null) {
+            if (typeof insertIndex !== 'number') {
+                // No rows at all: keep the previous behavior of clearing the header.
                 const header = table.querySelector('th[data-bn-quick-skip-header="1"]');
                 if (header) header.remove();
                 if (table.dataset) delete table.dataset.bnQuickSkipIndex;
                 return;
             }
+            debugLog('[quickSkip] applyQuickSkip: table class =', (table.className || '').slice(0, 80),
+                ', rows =', rows.length, ', insertIndex =', insertIndex);
 
             ensureQuickSkipHeaderCell(table, insertIndex);
 
             rows.forEach(tr => {
-                const cell = ensureQuickSkipCellAt(tr, insertIndex);
-                if (!cell) return;
-                cell.innerHTML = '';
-                const info = analyzeQuickSkipRow(tr);
-                if (info && info.qualifies) {
-                    const pid = getProblemIdFromRow(tr);
-                    if (!pid) return;
-                    const btn = createQuickSkipButton(pid);
-                    cell.appendChild(btn);
-                } else {
-                    cell.innerHTML = '&nbsp;';
+                try {
+                    const cell = ensureQuickSkipCellAt(tr, insertIndex);
+                    if (!cell) return;
+                    cell.innerHTML = '';
+                    const info = analyzeQuickSkipRow(tr);
+                    if (info && info.qualifies) {
+                        const pid = getProblemIdFromRow(tr);
+                        if (!pid) {
+                            // Leave a placeholder cell so the column stays aligned even
+                            // when the pid cannot be extracted for a single row.
+                            cell.innerHTML = '&nbsp;';
+                            return;
+                        }
+                        const btn = createQuickSkipButton(pid);
+                        cell.appendChild(btn);
+                    } else {
+                        cell.innerHTML = '&nbsp;';
+                    }
+                } catch (e) {
+                    debugLog('[quickSkip] applyQuickSkip: row error, skipped (', e, ')');
                 }
             });
         });
@@ -7859,7 +8031,11 @@
     // 初次遍历
     document.querySelectorAll(USER_LINK_SELECTOR).forEach(processUserLink);
     document.querySelectorAll('#vueAppFuckSafari > tbody > tr > td:nth-child(2) > a > span').forEach(processProblemTitle)
-    applyQuickSkip(enableQuickSkip);
+    try {
+        applyQuickSkip(enableQuickSkip);
+    } catch (e) {
+        debugLog('[quickSkip] initial applyQuickSkip failed:', e);
+    }
     applyHideDoneSkip(hideDoneSkip);
     applySubmittedHomeworkCollapse();
     applyTemplateBulkAddButton(enableTemplateBulkAdd);
@@ -7907,6 +8083,24 @@
             applyHideDoneSkip(_c ? _c.checked : hideDoneSkip);
         } catch (e) {
         }
+
+        // If any added node introduced a target table, re-run once against the whole
+        // document. This covers tables that finished rendering between the initial
+        // scan and the observer binding (timing race), while the per-node fast path
+        // above still handles ordinary DOM churn.
+        try {
+            const hasTargetTable = nodes.some(node => {
+                if (!node || node.nodeType !== 1) return false;
+                if (node.matches && node.matches('table') && isTargetTable(node)) return true;
+                if (node.querySelector) {
+                    return Array.from(node.querySelectorAll('table')).some(isTargetTable);
+                }
+                return false;
+            });
+            if (hasTargetTable) applyQuickSkip(quickSkipSetting, document);
+        } catch (e) {
+        }
+
         try {
             const ok = applyTemplateBulkAddButton(bulkAddSetting);
             if (!ok) scheduleTemplateBulkButton(bulkAddSetting);
@@ -7921,7 +8115,13 @@
             requestAnimationFrame(flushMO);
         }
     });
-    observer.observe(document.body, {childList: true, subtree: true});
+    if (document.body) {
+        observer.observe(document.body, {childList: true, subtree: true});
+    } else {
+        // Body may not exist yet at document_start on some pages; observe the
+        // document root instead so <body> and its tables are still captured.
+        observer.observe(document.documentElement || document, {childList: true, subtree: true});
+    }
 
     if (enableCopy) fEasierClip();
     if (enableDescCopy) fEasierDescClip();
