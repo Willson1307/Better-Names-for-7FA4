@@ -3317,9 +3317,13 @@ html.bn-user-plan-page .katex-display {
 })();
 
 /* === BN PATCH: user plan quick skip === */
-(function () {
+(async function () {
     const pathMatch = location.pathname.match(/^\/user_plans\/(\d+)(?:\/|$)/);
     if (!pathMatch) return;
+    try {
+        if (typeof window.__GM_ready === 'function') await window.__GM_ready();
+    } catch (_) { /* ignore */
+    }
     let quickSkipSetting;
     let quickSkipMigrated = false;
     try {
@@ -3348,8 +3352,6 @@ html.bn-user-plan-page .katex-display {
     let quickSkipEnabled = normalizeSetting(quickSkipSetting);
     if (!quickSkipMigrated) {
         if (quickSkipEnabled === undefined) {
-            quickSkipEnabled = true;
-        } else if (quickSkipEnabled === false) {
             quickSkipEnabled = true;
         }
         try {
