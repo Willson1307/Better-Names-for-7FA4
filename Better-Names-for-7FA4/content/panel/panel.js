@@ -3283,12 +3283,10 @@
         checkChanged();
     };
     chkQuickSkip.onchange = () => {
-        // Persist immediately so a refresh / SPA navigation right after toggling
-        // does not fall back to the previously saved value (memory + storage stay
-        // in sync; the Save button still persists the full config).
+        // Keep live rendering and the observer in sync. Persistence remains part
+        // of the explicit Save action, consistent with the other panel options.
         enableQuickSkip = chkQuickSkip.checked;
         applyQuickSkip(chkQuickSkip.checked);
-        try { GM_setValue('enableQuickSkip', chkQuickSkip.checked); } catch (e) { /* ignore */ }
         checkChanged();
     };
     if (chkUserPlanDateNavigator) chkUserPlanDateNavigator.onchange = checkChanged;
@@ -3498,9 +3496,6 @@
         applyHideDoneSkip(originalConfig.hideDoneSkip);
         if (chkQuickSkip) chkQuickSkip.checked = originalConfig.enableQuickSkip;
         enableQuickSkip = originalConfig.enableQuickSkip;
-        // Write storage back too: onchange now persists immediately, so resetting
-        // without this would leave a stale value in storage for the next load.
-        try { GM_setValue('enableQuickSkip', originalConfig.enableQuickSkip); } catch (e) { /* ignore */ }
         applyQuickSkip(originalConfig.enableQuickSkip);
         if (chkUserPlanDateNavigator) chkUserPlanDateNavigator.checked = originalConfig.enableUserPlanDateNavigator;
         if (chkPaperEditor) chkPaperEditor.checked = originalConfig.enablePaperEditor;
@@ -5183,17 +5178,12 @@
         if (!table || !rows || !rows.length) return null;
         for (const tr of rows) {
             const info = analyzeQuickSkipRow(tr);
-            if (info && info.qualifies && typeof info.insertIndex === 'number') return info.insertIndex;
+            if (info && info.qualifies && typeof info.insertIndex === 'number' && getProblemIdFromRow(tr)) {
+                return info.insertIndex;
+            }
         }
-        // No qualifying row found: fall back to a safe default insert column so the
-        // whole table is not skipped silently. A single row whose detection failed
-        // (e.g. odd structure, non-gold computed color) should not disable the
-        // feature for every row.
-        if (rows.length) {
-            const fallback = computeQuickSkipInsertColumn(Array.from(rows[0].cells));
-            debugLog('[quickSkip] computeQuickSkipInsertIndex: no qualifying row, fallback column =', fallback);
-            return typeof fallback === 'number' ? fallback : 1;
-        }
+        // Do not alter generic Semantic UI tables unless at least one row can
+        // actually receive a quick-skip button.
         return null;
     }
 
