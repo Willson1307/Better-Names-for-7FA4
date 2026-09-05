@@ -4203,7 +4203,9 @@
 
 #bn-user-menu {
     position: fixed;
-    z-index: 10001;
+    /* Right-click context menu: must stay above the full-viewport background overlay
+       layer (now pinned at 2147483646, just below the extension top-level UI). */
+    z-index: 2147483647;
     background-color: var(--bn-bg, #fff);
     background-image: linear-gradient(to left, rgba(124, 191, 255, 0.15), rgba(124, 191, 255, 0));
     background-repeat: no-repeat;
