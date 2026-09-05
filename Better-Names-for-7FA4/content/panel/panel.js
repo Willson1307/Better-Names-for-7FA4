@@ -513,6 +513,8 @@
     let bgOverlayObserver = null;    // mutation watchdog used for self-heal
     let bgReassertTimer = null;      // debounce timer for reassert
     let bgOverlayHooksRegistered = false;
+    let bgLastTargetBackground = null;    // last background shorthand string we applied
+    let bgLastAppliedBackground = null;   // canonical style.background read back after that write
 
     function removeBackgroundLayer() {
         const layer = document.getElementById(BN_BG_LAYER_ID);
@@ -544,8 +546,11 @@
         const targetBlur = clampBlur(blurPx);
         const targetBackground = `url("${trimmedUrl}") ${backgroundStyles[fillway]}`;
         const targetFilter = targetBlur > 0 ? `blur(${targetBlur}px)` : 'none';
-        // Only write when the current value deviates; keeps the watchdog cheap and
-        // avoids pointless style invalidations on routine DOM churn.
+        // Only write when the value deviates; keeps the watchdog cheap and avoids
+        // pointless style invalidations on routine DOM churn. The background is
+        // compared against the canonical value read back after our last write:
+        // browsers re-serialize the shorthand (e.g. spacing around "center / cover"),
+        // so a direct string comparison would never match and would rewrite each pass.
         if (style.position !== 'fixed') style.position = 'fixed';
         if (style.top !== '0') style.top = '0';
         if (style.left !== '0') style.left = '0';
@@ -555,7 +560,11 @@
         if (style.pointerEvents !== 'none') style.pointerEvents = 'none';
         if (style.opacity !== targetOpacity) style.opacity = targetOpacity;
         if (style.filter !== targetFilter) style.filter = targetFilter;
-        if (style.background !== targetBackground) style.background = targetBackground;
+        if (bgLastTargetBackground !== targetBackground || style.background !== bgLastAppliedBackground) {
+            style.background = targetBackground;
+            bgLastTargetBackground = targetBackground;
+            bgLastAppliedBackground = style.background;
+        }
     }
 
     function syncBackgroundOverlay() {
@@ -600,7 +609,10 @@
             if (bgOverlayObserver) return;
             try {
                 bgOverlayObserver = new MutationObserver(() => scheduleBackgroundReassert());
-                bgOverlayObserver.observe(document.body, {childList: true, subtree: true});
+                // Watch the document root rather than <body>: if a site script ever
+                // replaces the whole <body> element, an observer attached to the old
+                // node would die with it and self-heal would silently stop.
+                bgOverlayObserver.observe(document.documentElement || document.body, {childList: true, subtree: true});
             } catch (error) {
                 bgOverlayObserver = null;
                 debugLog('Background overlay watchdog failed to start', error);
